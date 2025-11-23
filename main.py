@@ -21,6 +21,7 @@ from services.market_maker_service import MarketMakerService
 from services.response_bot_service import ResponseBotService
 from services.global_analyst import GlobalAnalyst
 from services.news_service import NewsService
+from services.maintenance_service import MaintenanceService
 
 # Configure logging
 logging.basicConfig(
@@ -99,6 +100,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("✅ News service started")
     except Exception as e:
         logger.error(f"❌ News service error: {e}")
+    
+    # Maintenance Service
+    try:
+        maintenance_service = MaintenanceService()
+        maintenance_thread = threading.Thread(
+            target=maintenance_service.run_maintenance_loop,
+            name="MaintenanceService",
+            daemon=True
+        )
+        maintenance_thread.start()
+        background_threads.append(('MaintenanceService', maintenance_thread))
+        logger.info("✅ Maintenance service started")
+    except Exception as e:
+        logger.error(f"❌ Maintenance service error: {e}")
     
     logger.info(f"✅ All services started ({len(background_threads)} services running)")
     

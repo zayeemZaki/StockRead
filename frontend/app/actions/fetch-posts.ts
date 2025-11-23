@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { Post } from '@/types';
 
-export async function fetchMorePosts(page: number = 0, limit: number = 10): Promise<{
+export async function fetchMorePosts(page: number = 0, limit: number = 10, filter: string = 'all'): Promise<{
   posts: Post[];
   hasMore: boolean;
   error?: string;
@@ -15,17 +15,43 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10): Prom
     const start = page * limit;
     const end = start + limit - 1;
     
-    // Fetch posts with all joins (profiles, comments, reactions)
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles ( username, avatar_url ),
-        comments ( id ),
-        reactions ( user_id )
-      `)
-      .order('created_at', { ascending: false })
-      .range(start, end);
+    let query;
+    let countQuery;
+    
+    if (filter === 'trending') {
+      // Query trending_posts_24h materialized view
+      query = supabase
+        .from('trending_posts_24h')
+        .select(`
+          *,
+          comments ( id ),
+          reactions ( user_id )
+        `)
+        .order('trending_score', { ascending: false })
+        .range(start, end);
+      
+      countQuery = supabase
+        .from('trending_posts_24h')
+        .select('*', { count: 'exact', head: true });
+    } else {
+      // Default query for 'all', 'bullish', etc.
+      query = supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles ( username, avatar_url ),
+          comments ( id ),
+          reactions ( user_id )
+        `)
+        .order('created_at', { ascending: false })
+        .range(start, end);
+      
+      countQuery = supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true });
+    }
+    
+    const { data: rawPosts, error } = await query;
     
     if (error) {
       console.error('Error fetching posts:', error);
@@ -36,17 +62,27 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10): Prom
       };
     }
     
-    // Check if there are more posts
-    // Fetch one extra post to determine if there's more
-    const { count } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true });
+    // Transform trending posts to match Post interface
+    let posts: Post[] = [];
+    if (filter === 'trending' && rawPosts) {
+      posts = rawPosts.map(post => ({
+        ...post,
+        profiles: {
+          username: post.author_username,
+          avatar_url: post.author_avatar
+        }
+      })) as Post[];
+    } else {
+      posts = (rawPosts || []) as Post[];
+    }
     
+    // Check if there are more posts
+    const { count } = await countQuery;
     const totalPosts = count || 0;
     const hasMore = end + 1 < totalPosts;
     
     return {
-      posts: (posts || []) as Post[],
+      posts,
       hasMore
     };
   } catch (error: any) {
