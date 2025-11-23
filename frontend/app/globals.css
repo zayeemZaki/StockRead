@@ -1,0 +1,176 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-bullish: var(--bullish);
+  --color-bullish-foreground: var(--bullish-foreground);
+  --color-bearish: var(--bearish);
+  --color-bearish-foreground: var(--bearish-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  
+  /* Light Mode: Clean, professional white */
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  
+  /* Brand: Deep Indigo */
+  --brand: #4f46e5; /* Indigo-600 */
+  --brand-foreground: #ffffff;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  
+  /* Semantic Colors */
+  --secondary: #f4f4f5; /* Zinc-100 */
+  --secondary-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a; /* Zinc-500 */
+  --accent: #f4f4f5;
+  --accent-foreground: #09090b;
+  
+  /* Financial Semantics */
+  --bullish: #10b981; /* Emerald-500 */
+  --bullish-foreground: #ffffff;
+  --bearish: #f43f5e; /* Rose-500 */
+  --bearish-foreground: #ffffff;
+  --warning: #f59e0b; /* Amber-500 */
+  --warning-foreground: #ffffff;
+  --destructive: #ef4444; /* Red-500 */
+  
+  /* Borders & Input */
+  --border: #e4e4e7; /* Zinc-200 */
+  --input: #e4e4e7;
+  --ring: #4f46e5; /* Indigo-600 */
+  
+  /* Charts */
+  --chart-1: #4f46e5; /* Indigo */
+  --chart-2: #10b981; /* Emerald */
+  --chart-3: #f59e0b; /* Amber */
+  --chart-4: #f43f5e; /* Rose */
+  --chart-5: #8b5cf6; /* Violet */
+  
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #4f46e5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #4f46e5;
+}
+
+.dark {
+  /* Dark Mode: Rich, deep Zinc backgrounds */
+  --background: #09090b; /* Zinc-950 */
+  --foreground: #fafafa; /* Zinc-50 */
+  --card: #18181b; /* Zinc-900 */
+  --card-foreground: #fafafa;
+  --popover: #18181b; /* Zinc-900 */
+  --popover-foreground: #fafafa;
+  
+  /* Brand: Vibrant Indigo for dark mode */
+  --brand: #6366f1; /* Indigo-500 */
+  --brand-foreground: #ffffff;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  
+  /* Semantic Colors */
+  --secondary: #27272a; /* Zinc-800 */
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa; /* Zinc-400 */
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  
+  /* Financial Semantics - Vibrant for dark backgrounds */
+  --bullish: #34d399; /* Emerald-400 */
+  --bullish-foreground: #064e3b; /* Emerald-950 */
+  --bearish: #fb7185; /* Rose-400 */
+  --bearish-foreground: #4c0519; /* Rose-950 */
+  --warning: #fbbf24; /* Amber-400 */
+  --warning-foreground: #451a03; /* Amber-950 */
+  --destructive: #f87171; /* Red-400 */
+  
+  /* Borders & Input */
+  --border: #27272a; /* Zinc-800 */
+  --input: #27272a;
+  --ring: #6366f1; /* Indigo-500 */
+  
+  /* Charts */
+  --chart-1: #818cf8; /* Indigo-400 */
+  --chart-2: #34d399; /* Emerald-400 */
+  --chart-3: #fbbf24; /* Amber-400 */
+  --chart-4: #fb7185; /* Rose-400 */
+  --chart-5: #a78bfa; /* Violet-400 */
+  
+  /* Sidebar */
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #6366f1;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  .dark body {
+    background: radial-gradient(circle at top center, rgb(30 41 59), rgb(15 23 42), rgb(9 9 11));
+    background-attachment: fixed;
+  }
+}
