@@ -21,6 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire project (including services/ folder)
 COPY . .
 
-# Run the main entry point
+# Run the FastAPI application
+# Using python main.py to respect PORT environment variable
 CMD ["python", "main.py"]
 
