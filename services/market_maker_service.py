@@ -20,7 +20,8 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise Exception("Missing Supabase credentials. Check your .env file.")
 
-BLACKLIST = ['ANSS', 'DISCA', 'CTLT', 'DFS']
+BLACKLIST = ['ANSS', 'DISCA', 'DISCK', 'HES', 'CTLT', 'DFS']
+
 CHUNK_SIZE = 50
 
 
