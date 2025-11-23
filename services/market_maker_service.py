@@ -20,7 +20,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise Exception("Missing Supabase credentials. Check your .env file.")
 
-BLACKLIST = ['ANSS', 'DISCA']
+BLACKLIST = ['ANSS', 'DISCA', 'CTLT', 'DFS']
 CHUNK_SIZE = 50
 
 
@@ -137,7 +137,8 @@ class MarketMakerService:
                     interval="1d",
                     group_by='ticker',
                     progress=False,
-                    threads=True
+                    threads=True,
+                    auto_adjust=True
                 )
                 
                 chunk_success = 0

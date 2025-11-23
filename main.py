@@ -185,6 +185,12 @@ async def health():
         )
 
 
+@app.get("/healthz")
+async def healthz():
+    """Health check endpoint for Render/Kubernetes (returns simple OK status)."""
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(
