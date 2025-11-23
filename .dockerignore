@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Frontend (not needed in backend container)
+frontend/
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!DEPLOY.md
+
+# Environment files (use Render env vars instead)
+.env
+.env.local
+
+# Database migrations (not needed at runtime)
+database_migrations/
+
+# Cache files
+*.cache
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+

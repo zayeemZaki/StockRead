@@ -4,17 +4,16 @@ supabase>=2.0.0
 python-dotenv>=1.0.0
 pandas>=2.0.0
 
-# Technical analysis (optional - install manually if needed)
-# pandas-ta>=0.3.14b0
+# Technical analysis (optional but recommended)
+pandas-ta>=0.3.14b0
 
 # News and data
 GoogleNews>=1.6.11
 requests>=2.31.0
+lxml>=4.9.0
 
 # AI/ML
 google-generativeai>=0.3.0
 
 # Utilities
 pytz>=2023.3
-tqdm>=4.67.1
-
