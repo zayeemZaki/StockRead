@@ -218,8 +218,28 @@ class MarketMakerService:
             chunk = stock_data_list[i:i + db_chunk_size]
             
             try:
+                # Upsert to market_prices (current prices)
                 self.supabase.table('market_prices').upsert(chunk, on_conflict='symbol').execute()
                 saved += len(chunk)
+                
+                # Insert time-series data to market_ticks (historical logging)
+                try:
+                    tick_data = [
+                        {
+                            'symbol': item['symbol'],
+                            'price': item['price'],
+                            'time': item['updated_at']
+                        }
+                        for item in chunk
+                    ]
+                    
+                    self.supabase.table('market_ticks').insert(tick_data).execute()
+                    logger.info(f"📊 Logged {len(tick_data)} ticks to time-series")
+                    
+                except Exception as tick_error:
+                    logger.warning(f"Time-series logging failed: {tick_error}")
+                    # Don't fail the main operation if logging fails
+                
             except Exception as chunk_error:
                 logger.error(f"Database chunk failed: {chunk_error}")
         
