@@ -15,7 +15,6 @@ from typing import AsyncGenerator
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 import uvicorn
 
 from services.market_maker_service import MarketMakerService
@@ -23,6 +22,7 @@ from services.response_bot_service import ResponseBotService
 from services.global_analyst import GlobalAnalyst
 from services.news_service import NewsService
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -146,49 +146,18 @@ app = FastAPI(
 
 @app.get("/")
 async def root():
-    """Root endpoint - service status."""
+    """Root endpoint - welcome message."""
     return {
-        "status": "active",
+        "message": "Welcome to Stockit Intelligence",
         "service": "Stockit Intelligence",
-        "services": {
-            "market_maker": any(t[0] == "MarketMaker" and t[1].is_alive() for t in background_threads),
-            "response_bot": any(t[0] == "ResponseBot" and t[1].is_alive() for t in background_threads),
-            "global_analyst": any(t[0] == "GlobalAnalyst" and t[1].is_alive() for t in background_threads),
-            "news_service": any(t[0] == "NewsService" and t[1].is_alive() for t in background_threads),
-        }
+        "status": "active"
     }
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint."""
-    # Check if all services are running
-    all_running = all(thread.is_alive() for _, thread in background_threads)
-    
-    if all_running and len(background_threads) > 0:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "healthy",
-                "services": len(background_threads),
-                "all_running": True
-            }
-        )
-    else:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "services": len(background_threads),
-                "all_running": False
-            }
-        )
 
 
 @app.get("/healthz")
 async def healthz():
-    """Health check endpoint for Render/Kubernetes (returns simple OK status)."""
-    return {"status": "ok"}
+    """Health check endpoint for Render/Kubernetes."""
+    return {"status": "ok", "healthy": True}
 
 
 if __name__ == "__main__":
