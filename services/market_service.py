@@ -7,8 +7,13 @@ from datetime import datetime
 import yfinance as yf
 import requests
 import pandas as pd
-import pandas_ta as ta
 from GoogleNews import GoogleNews
+
+try:
+    import pandas_ta as ta
+    HAS_PANDAS_TA = True
+except ImportError:
+    HAS_PANDAS_TA = False
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +160,10 @@ class MarketDataService:
         Returns:
             Dictionary with RSI, trend, and SMA values
         """
+        if not HAS_PANDAS_TA:
+            logger.warning("pandas-ta not available, technical analysis disabled")
+            return None
+            
         try:
             stock = yf.Ticker(ticker)
             df = stock.history(period="1y")
