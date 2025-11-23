@@ -7,6 +7,7 @@ import { PostCard } from '@/components/features';
 import { FeedSkeleton } from '@/components/ui';
 import { TrendingUp, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
 import { fetchMorePosts } from '@/app/actions/fetch-posts';
+import { createClient } from '@/lib/supabase-client';
 
 type FilterType = 'all' | 'trending' | 'bullish' | 'bearish' | 'high-risk';
 
@@ -24,6 +25,11 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
   const [page, setPage] = useState(1); // Start at page 1 (page 0 is initialPosts)
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Convert prop to state for realtime updates
+  const [insights, setInsights] = useState(new Map(
+    Object.entries(liveInsightsMap || {}).map(([ticker, data]) => [ticker, data])
+  ));
   
   console.log('FeedManager: liveInsightsMap received:', liveInsightsMap ? Object.keys(liveInsightsMap).length : 0, 'keys');
   console.log('FeedManager: AAPL in map?', liveInsightsMap?.['AAPL']);
@@ -77,6 +83,37 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
     }
   }, [inView, hasMore, isLoadingMore, loadMorePosts]);
 
+  // Supabase Realtime subscription for ticker_insights updates
+  useEffect(() => {
+    const supabase = createClient();
+    
+    const channel = supabase
+      .channel('ticker_insights_updates')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'ticker_insights'
+      }, (payload) => {
+        const updatedRow = payload.new;
+        console.log('Realtime update received for ticker:', updatedRow.ticker, updatedRow);
+        
+        setInsights(prev => {
+          const newMap = new Map(prev);
+          newMap.set(updatedRow.ticker, {
+            ai_score: updatedRow.ai_score,
+            ai_signal: updatedRow.ai_signal,
+            ai_risk: updatedRow.ai_risk
+          });
+          return newMap;
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const handleDeletePost = (postId: number) => {
     console.log('Deleting post:', postId);
     // Optimistically remove the post from the UI
@@ -112,7 +149,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
       case 'high-risk':
         // Use live insights if available, otherwise fall back to post data
         postsToFilter = postsToFilter.filter(p => {
-          const liveData = liveInsightsMap?.[p.ticker];
+          const liveData = insights.get(p.ticker);
           const risk = liveData?.ai_risk || p.ai_risk;
           return risk === 'High' || risk === 'Extreme';
         });
@@ -124,7 +161,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
     }
 
     return postsToFilter;
-  }, [posts, activeFilter, liveInsightsMap]);
+  }, [posts, activeFilter, insights]);
 
   const filterButtons: { id: FilterType; label: string; icon?: React.ReactNode }[] = [
     { id: 'all', label: 'All' },
@@ -175,7 +212,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
               const initialCommentCount = post.comments?.length || 0;
               
               // Get live AI insight for this ticker
-              const liveInsight = liveInsightsMap?.[post.ticker];
+              const liveInsight = insights.get(post.ticker);
 
               return (
                 <PostCard
