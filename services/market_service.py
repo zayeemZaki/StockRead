@@ -1,6 +1,9 @@
 """Market data service for fetching stock information from multiple sources."""
 import logging
 import time
+import redis
+import json
+import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -25,6 +28,18 @@ class MarketDataService:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
+        
+        # Initialize Redis with graceful degradation
+        try:
+            self.redis = redis.from_url(os.getenv("REDIS_URL"))
+            self.redis.ping()  # Test connection
+            self.redis_available = True
+            logger.info("Redis cache initialized successfully")
+        except Exception as e:
+            logger.warning(f"Redis connection failed: {e}. Caching disabled.")
+            self.redis = None
+            self.redis_available = False
+        
         logger.info("Market data service initialized")
 
     def get_macro_context(self) -> Optional[Dict[str, Any]]:
@@ -68,6 +83,19 @@ class MarketDataService:
         Returns:
             Dictionary with price, volume, and fundamental metrics
         """
+        cache_key = f"stock:price:{ticker.upper()}"
+        
+        # Step A: Read Cache
+        if self.redis_available:
+            try:
+                cached_data = self.redis.get(cache_key)
+                if cached_data:
+                    logger.info(f"✅ Cache Hit for {ticker} price data")
+                    return json.loads(cached_data)
+            except Exception as e:
+                logger.warning(f"Redis cache read error: {e}")
+        
+        # Step B: API Fetch
         try:
             stock = yf.Ticker(ticker)
             
@@ -89,7 +117,7 @@ class MarketDataService:
             else:
                 mcap_str = f"${round(mcap/1_000_000, 2)}M"
 
-            return {
+            data = {
                 "price": round(price, 2),
                 "change_percent": round(change_percent, 2),
                 "volume": int(volume),
@@ -98,6 +126,17 @@ class MarketDataService:
                 "peg_ratio": info.get('pegRatio', 'N/A'),
                 "short_ratio": info.get('shortRatio', 'N/A')
             }
+            
+            # Step C: Write Cache
+            if self.redis_available:
+                try:
+                    self.redis.setex(cache_key, 60, json.dumps(data))  # 60 second TTL
+                    logger.info(f"💾 Cached price data for {ticker}")
+                except Exception as e:
+                    logger.warning(f"Redis cache write error: {e}")
+            
+            return data
+            
         except Exception as e:
             logger.error(f"Failed to fetch market data for {ticker}: {str(e)}")
             return None
@@ -163,7 +202,20 @@ class MarketDataService:
         if not HAS_PANDAS_TA:
             logger.warning("pandas-ta not available, technical analysis disabled")
             return None
-            
+        
+        cache_key = f"stock:tech:{ticker.upper()}"
+        
+        # Step A: Read Cache
+        if self.redis_available:
+            try:
+                cached_data = self.redis.get(cache_key)
+                if cached_data:
+                    logger.info(f"✅ Cache Hit for {ticker} technical data")
+                    return json.loads(cached_data)
+            except Exception as e:
+                logger.warning(f"Redis cache read error: {e}")
+        
+        # Step B: API Fetch
         try:
             stock = yf.Ticker(ticker)
             df = stock.history(period="1y")
@@ -196,7 +248,7 @@ class MarketDataService:
             elif rsi < 30: 
                 rsi_signal = "OVERSOLD (Potential Bounce)"
             
-            return {
+            data = {
                 "current_price": round(price, 2),
                 "rsi": rsi,
                 "rsi_signal": rsi_signal,
@@ -204,6 +256,16 @@ class MarketDataService:
                 "sma_20": round(sma_20, 2),
                 "sma_50": round(sma_50, 2)
             }
+            
+            # Step C: Write Cache
+            if self.redis_available:
+                try:
+                    self.redis.setex(cache_key, 300, json.dumps(data))  # 300 second (5 minute) TTL
+                    logger.info(f"💾 Cached technical data for {ticker}")
+                except Exception as e:
+                    logger.warning(f"Redis cache write error: {e}")
+            
+            return data
 
         except Exception as e:
             logger.error(f"Failed to fetch technical analysis for {ticker}: {str(e)}")
