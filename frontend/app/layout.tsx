@@ -24,19 +24,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.variable} font-sans antialiased`}
-        suppressHydrationWarning
       >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
-          suppressHydrationWarning
         >
           <GlobalSearch />
-          <div suppressHydrationWarning>
-            <Toaster theme="dark" position="bottom-right" />
-          </div>
+          <Toaster theme="dark" position="bottom-right" />
           {children}
         </ThemeProvider>
       </body>
