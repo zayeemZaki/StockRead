@@ -32,6 +32,7 @@ htmlcov/
 venv/
 ENV/
 env/
+*.egg-info/
 
 # Node.js / Next.js
 node_modules/
