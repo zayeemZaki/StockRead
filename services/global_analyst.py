@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Global Analyst Service - Top 200 Stocks AI Analysis Engine
+Global Analyst Service - User-Interest Tracking AI Analysis Engine
 
-Analyzes the most popular/liquid stocks during market hours using batch processing.
+Analyzes stocks that users have posted about (from ticker_insights table) during market hours.
 
 Features:
-- Analyzes top 200 most liquid stocks (by market cap/volume)
-- Runs 3 times during market hours (9:30 AM - 4:00 PM ET)
+- Tracks only user-interest stocks (from ticker_insights table)
+- Always includes core stocks (NVDA, TSLA, AAPL, etc.) as safety net
+- Runs 3 times during market hours (10 AM, 12 PM, 2:30 PM ET)
 - Skips when market is closed
-- Batches 10 stocks per AI request to save quota (20 requests total)
+- Batches 5 stocks per AI request to save quota
 - 20-second delay between batches
+- Refreshes ticker list daily at 10 AM
 - Saves to ticker_insights table for global market view
 """
 
@@ -18,11 +20,8 @@ import os
 import time
 import re
 import json
-import pickle
-from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import pytz
-import yfinance as yf
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,7 +29,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.market_service import MarketDataService
 from services.ai_service import AIService
 from services.db_service import DatabaseService
-from market_maker import get_sp500_tickers
 
 
 def safe_float(value):
@@ -67,9 +65,13 @@ def safe_float(value):
 
 class GlobalAnalyst:
     """
-    Background service that analyzes top 200 stocks with AI.
+    Background service that analyzes user-interest stocks with AI.
     Runs during market hours only, uses batch processing.
+    Tracks only stocks that users have posted about (from ticker_insights table).
     """
+    
+    # Core list of top stocks to always include (safety net)
+    CORE_STOCKS = ['NVDA', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AMD', 'NFLX', 'SPY']
     
     def __init__(self):
         self.data_engine = MarketDataService()
@@ -79,148 +81,52 @@ class GlobalAnalyst:
         # Set up Eastern timezone for market hours
         self.eastern = pytz.timezone('US/Eastern')
         
-        # Get all S&P 500 tickers
-        all_tickers = get_sp500_tickers()
-        
-        # Load or generate stock lists (cached for 7 days)
-        cache_file = Path(__file__).parent / '.top_stocks_cache.pkl'
-        self.top_100, self.next_200, self.remaining_200 = self._load_or_generate_stock_lists(all_tickers, cache_file)
+        # Get user-interest tickers from database
+        self.tracked_tickers = self._get_user_interest_tickers()
         
         print(f"\n✅ Global Analyst initialized")
-        print(f"   🏆 Top 100 stocks: {len(self.top_100)} (batch size: 5, analyzed 3x daily)")
-        print(f"   📊 Next 200 stocks: {len(self.next_200)} (batch size: 10, analyzed 3x daily)")
-        print(f"   📈 Remaining 200 stocks: {len(self.remaining_200)} (batch size: 15, analyzed 1x daily at 10 AM)")
+        print(f"   📊 User-interest stocks: {len(self.tracked_tickers)} (batch size: 5, analyzed 3x daily)")
+        print(f"   🛡️  Core stocks included: {len([t for t in self.CORE_STOCKS if t in self.tracked_tickers])}/{len(self.CORE_STOCKS)}")
     
-    def _load_or_generate_stock_lists(self, all_tickers: list, cache_file: Path) -> tuple:
+    def _get_user_interest_tickers(self) -> list:
         """
-        Load cached stock lists or generate new ones.
-        Cache is valid for 7 days.
+        Fetch unique tickers from ticker_insights table (user-interest tracking).
+        Always includes core stocks as a safety net.
         
         Returns:
-            Tuple of (top_100_tickers, next_200_tickers, remaining_200_tickers)
+            List of unique ticker symbols
         """
-        # Check if cache exists and is recent (< 7 days old)
-        if cache_file.exists():
-            cache_age = datetime.now().timestamp() - cache_file.stat().st_mtime
-            if cache_age < 7 * 24 * 60 * 60:  # 7 days in seconds
-                try:
-                    with open(cache_file, 'rb') as f:
-                        cached_data = pickle.load(f)
-                    print(f"\n✅ Loaded cached stock lists (cache age: {cache_age/86400:.1f} days)")
-                    return cached_data['top_100'], cached_data['next_200'], cached_data['remaining_200']
-                except Exception as e:
-                    print(f"⚠️  Cache read failed: {e}, regenerating...")
-        
-        # Generate new lists
-        print(f"\n📊 Generating stock lists by market cap (this may take 10-20 minutes)...")
-        top_100, next_200, remaining_200 = self._get_stocks_by_market_cap(all_tickers)
-        
-        # Cache the results
         try:
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'top_100': top_100,
-                    'next_200': next_200,
-                    'remaining_200': remaining_200,
-                    'generated_at': datetime.now().isoformat()
-                }, f)
-            print(f"\n💾 Cached stock lists to {cache_file}")
+            # Fetch all unique tickers from ticker_insights table
+            response = self.db.supabase.table('ticker_insights').select('ticker').execute()
+            
+            # Extract unique tickers
+            db_tickers = [row['ticker'] for row in response.data if row.get('ticker')]
+            db_tickers = list(set(db_tickers))  # Remove duplicates
+            
+            # Combine with core stocks and remove duplicates
+            all_tickers = list(set(db_tickers + self.CORE_STOCKS))
+            
+            # Sort for consistency (core stocks first, then alphabetical)
+            core_in_list = [t for t in self.CORE_STOCKS if t in all_tickers]
+            other_tickers = sorted([t for t in all_tickers if t not in self.CORE_STOCKS])
+            sorted_tickers = core_in_list + other_tickers
+            
+            print(f"\n📊 Fetched {len(db_tickers)} tickers from database")
+            print(f"   + {len(self.CORE_STOCKS)} core stocks (safety net)")
+            print(f"   = {len(sorted_tickers)} total tracked stocks")
+            
+            return sorted_tickers
+            
         except Exception as e:
-            print(f"⚠️  Cache write failed: {e}")
-        
-        return top_100, next_200, remaining_200
+            print(f"⚠️  Failed to fetch tickers from database: {e}")
+            print(f"   Falling back to core stocks only")
+            return self.CORE_STOCKS.copy()
     
-    def _get_stocks_by_market_cap(self, tickers: list) -> tuple:
-        """
-        Fetch market cap for all tickers and split into three tiers.
-        
-        Returns:
-            Tuple of (top_100_tickers, next_200_tickers, remaining_200_tickers)
-        """
-        stocks_with_mcap = []
-        
-        for i, ticker in enumerate(tickers, 1):
-            try:
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                mcap = info.get('marketCap', 0)
-                
-                if mcap and mcap > 0:
-                    stocks_with_mcap.append({
-                        'ticker': ticker,
-                        'market_cap': mcap
-                    })
-                    
-                    # Show progress every 50 stocks
-                    if i % 50 == 0:
-                        print(f"   📈 Processed {i}/{len(tickers)} tickers...")
-                
-                # Small delay to avoid rate limits
-                if i % 100 == 0:
-                    time.sleep(2)
-                    
-            except Exception as e:
-                print(f"   ⚠️  {ticker}: {e}")
-                continue
-        
-        # Sort by market cap descending
-        stocks_with_mcap.sort(key=lambda x: x['market_cap'], reverse=True)
-        
-        # Split into three tiers
-        top_100 = [s['ticker'] for s in stocks_with_mcap[:100]]
-        next_200 = [s['ticker'] for s in stocks_with_mcap[100:300]]
-        remaining_200 = [s['ticker'] for s in stocks_with_mcap[300:500]]
-        
-        print(f"\n✅ Stock lists generated")
-        print(f"   🏆 Top 100 - Largest: {top_100[0]} | Smallest: {top_100[-1]}")
-        print(f"   📊 Next 200 - Range: {next_200[0]} to {next_200[-1]}")
-        print(f"   📈 Remaining {len(remaining_200)} stocks")
-        
-        return top_100, next_200, remaining_200
-    
-    def get_top_stocks(self, tickers: list, limit: int = 200) -> list:
-        """Get top N stocks by market cap"""
-        print(f"\n📊 Selecting top {limit} stocks by market cap...")
-        
-        # Fetch market cap for all tickers
-        stocks_with_mcap = []
-        
-        for i, ticker in enumerate(tickers, 1):
-            try:
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                mcap = info.get('marketCap', 0)
-                
-                if mcap and mcap > 0:
-                    stocks_with_mcap.append({
-                        'ticker': ticker,
-                        'market_cap': mcap
-                    })
-                    
-                    # Show progress every 50 stocks
-                    if i % 50 == 0:
-                        print(f"   📈 Processed {i}/{len(tickers)} tickers...")
-                
-                # Small delay to avoid rate limits
-                if i % 100 == 0:
-                    time.sleep(2)
-                    
-            except Exception as e:
-                print(f"   ⚠️  {ticker}: {e}")
-                continue
-        
-        # Sort by market cap descending
-        stocks_with_mcap.sort(key=lambda x: x['market_cap'], reverse=True)
-        
-        # Return top N tickers
-        top_tickers = [s['ticker'] for s in stocks_with_mcap[:limit]]
-        
-        print(f"\n✅ Selected top {len(top_tickers)} stocks by market cap")
-        if top_tickers:
-            print(f"   🏆 Largest: {top_tickers[0]}")
-            print(f"   📉 Smallest in top {limit}: {top_tickers[-1]}")
-        
-        return top_tickers
+    def refresh_ticker_list(self):
+        """Refresh the list of tracked tickers from the database."""
+        self.tracked_tickers = self._get_user_interest_tickers()
+        print(f"🔄 Refreshed ticker list: {len(self.tracked_tickers)} stocks")
     
     def is_market_open(self) -> bool:
         """Check if US market is currently open (9:30 AM - 4:00 PM ET, Mon-Fri)"""
@@ -525,18 +431,18 @@ Respond ONLY with valid JSON (no markdown):
         
         return False
     
-    def analyze_all_tickers(self, ticker_list: list = None, description: str = "stocks", batch_size: int = 10):
+    def analyze_all_tickers(self, ticker_list: list = None, description: str = "stocks", batch_size: int = 5):
         """
         Analyze tickers using batch processing.
         Only runs during market hours. 20-second delay between batches.
         
         Args:
-            ticker_list: List of tickers to analyze (defaults to top_100)
+            ticker_list: List of tickers to analyze (defaults to tracked_tickers)
             description: Description for logging
-            batch_size: Number of stocks per batch (5 for top 100, 10 for next 200, 15 for remaining 200)
+            batch_size: Number of stocks per batch (default: 5)
         """
         if ticker_list is None:
-            ticker_list = self.top_100
+            ticker_list = self.tracked_tickers
         
         # Check if market is open
         if not self.is_market_open():
@@ -595,19 +501,16 @@ Respond ONLY with valid JSON (no markdown):
     def run_continuous(self):
         """
         Run the analyst in continuous mode.
-        - Top 100 stocks: 3x daily (10 AM, 12 PM, 2:30 PM ET) - batch size 5
-        - Next 200 stocks: 3x daily (10 AM, 12 PM, 2:30 PM ET) - batch size 10
-        - Remaining 200 stocks: 1x daily (10 AM ET only) - batch size 15
-        Skips when market is closed.
+        - User-interest stocks: 3x daily (10 AM, 12 PM, 2:30 PM ET) - batch size 5
+        - Refreshes ticker list at the start of each day
+        - Skips when market is closed.
         """
-        print("\n🚀 Global Analyst Service Started")
-        print(f"🏆 Top 100 stocks: {len(self.top_100)} (batch: 5, analyzed 3x daily)")
-        print(f"📊 Next 200 stocks: {len(self.next_200)} (batch: 10, analyzed 3x daily)")
-        print(f"📈 Remaining 200 stocks: {len(self.remaining_200)} (batch: 15, analyzed 1x daily)")
+        print("\n🚀 Global Analyst Service Started (User-Interest Tracking Mode)")
+        print(f"📊 Tracked stocks: {len(self.tracked_tickers)} (batch: 5, analyzed 3x daily)")
         print(f"⏰ Schedule:")
-        print(f"   - 10:00 AM ET: All 500 stocks (top 100 + next 200 + remaining 200)")
-        print(f"   - 12:00 PM ET: Top 300 only (top 100 + next 200)")
-        print(f"   - 2:30 PM ET: Top 300 only (top 100 + next 200)")
+        print(f"   - 10:00 AM ET: Full refresh + analysis")
+        print(f"   - 12:00 PM ET: Analysis")
+        print(f"   - 2:30 PM ET: Analysis")
         print(f"⏱️  Batch delay: 20 seconds")
         print(f"💾 Database: ticker_insights table")
         print("\nPress Ctrl+C to stop...\n")
@@ -661,20 +564,16 @@ Respond ONLY with valid JSON (no markdown):
                 if abs(time_diff) < 300 and last_run_date != current_date:  # Within 5 minutes and haven't run today
                     print(f"\n⏰ Scheduled run time reached ({now_et.strftime('%H:%M:%S %Z')})")
                     
-                    # 10 AM: Analyze all 500 stocks
+                    # 10 AM: Refresh ticker list and analyze all
                     if next_hour == 10:
-                        print("\n🌅 Morning Analysis - Full Coverage (500 stocks)")
-                        self.analyze_all_tickers(self.top_100, "top 100", batch_size=5)
+                        print("\n🌅 Morning Analysis - Refreshing ticker list and analyzing all stocks")
+                        self.refresh_ticker_list()
                         print("\n" + "="*80 + "\n")
-                        self.analyze_all_tickers(self.next_200, "next 200", batch_size=10)
-                        print("\n" + "="*80 + "\n")
-                        self.analyze_all_tickers(self.remaining_200, f"remaining 200", batch_size=15)
-                    # 12 PM and 2:30 PM: Top 300 only
+                        self.analyze_all_tickers(self.tracked_tickers, "user-interest stocks", batch_size=5)
+                    # 12 PM and 2:30 PM: Analyze current list
                     else:
-                        print(f"\n📊 {now_et.strftime('%I:%M %p')} Analysis - Top 300 Stocks")
-                        self.analyze_all_tickers(self.top_100, "top 100", batch_size=5)
-                        print("\n" + "="*80 + "\n")
-                        self.analyze_all_tickers(self.next_200, "next 200", batch_size=10)
+                        print(f"\n📊 {now_et.strftime('%I:%M %p')} Analysis - User-Interest Stocks")
+                        self.analyze_all_tickers(self.tracked_tickers, "user-interest stocks", batch_size=5)
                     
                     last_run_date = current_date
                     

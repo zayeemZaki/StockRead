@@ -18,7 +18,12 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
         (stock) =>
           stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
           stock.name.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 10)
+      )
+        // Deduplicate by symbol (keep first occurrence)
+        .filter((stock, index, self) => 
+          index === self.findIndex((s) => s.symbol === stock.symbol)
+        )
+        .slice(0, 10)
     : [];
 
   useEffect(() => {

@@ -19,7 +19,7 @@ export default async function Home() {
     followingIds = following?.map(f => f.following_id) || [];
   }
   
-  // Fetch all posts
+  // Fetch initial posts (first page only - infinite scroll will load more)
   const { data: posts, error } = await supabase
     .from('posts')
     .select(`
@@ -28,7 +28,8 @@ export default async function Home() {
       comments ( id ),
       reactions ( user_id )
     `)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(0, 9); // First 10 posts (page 0, limit 10)
 
   if (error) {
     return <div className="p-10 text-red-500">Error loading feed: {error.message}</div>;
@@ -54,18 +55,9 @@ export default async function Home() {
   console.log('Server: insightsMap keys:', Object.keys(insightsMap).slice(0, 10));
   console.log('Server: AAPL insight:', insightsMap['AAPL']);
 
-  // Sort posts: Friends first, then by date
-  const sortedPosts = (posts || []).sort((a, b) => {
-    const aIsFollowing = followingIds.includes(a.user_id);
-    const bIsFollowing = followingIds.includes(b.user_id);
-    
-    // Priority 1: Posts from followed users come first
-    if (aIsFollowing && !bIsFollowing) return -1;
-    if (!aIsFollowing && bIsFollowing) return 1;
-    
-    // Priority 2: If both are from followed users or both aren't, sort by date (newest first)
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  // Posts are already sorted by newest first from the query
+  // (Friend-first sorting removed for infinite scroll pagination simplicity)
+  const sortedPosts = posts || [];
 
   return (
     <>

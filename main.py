@@ -9,15 +9,14 @@ import os
 import threading
 import signal
 import logging
-from pathlib import Path
+import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from market_maker import run_market_maker
-from response_bot import process_user_posts
+from services.market_maker_service import MarketMakerService
+from services.response_bot_service import ResponseBotService
 from services.global_analyst import GlobalAnalyst
-from fetch_news import update_market_news
-import time
+from services.news_service import NewsService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,14 +30,16 @@ stop_event = threading.Event()
 def run_market_maker_service():
     """Run market maker service."""
     try:
-        run_market_maker()
+        market_maker = MarketMakerService()
+        market_maker.run()
     except Exception as e:
         logger.error(f"Market maker service error: {e}")
 
 def run_response_bot_service():
     """Run response bot service."""
     try:
-        process_user_posts()
+        response_bot = ResponseBotService()
+        response_bot.run()
     except Exception as e:
         logger.error(f"Response bot service error: {e}")
 
@@ -53,8 +54,9 @@ def run_global_analyst_service():
 def run_news_service():
     """Run news update service."""
     try:
+        news_service = NewsService()
         while not stop_event.is_set():
-            update_market_news()
+            news_service.update_market_news()
             time.sleep(3600)
     except Exception as e:
         logger.error(f"News service error: {e}")

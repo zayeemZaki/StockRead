@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { Post } from '@/types';
 import { PostCard } from '@/components/features';
 import { FeedSkeleton } from '@/components/ui';
 import { TrendingUp, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import { fetchMorePosts } from '@/app/actions/fetch-posts';
 
 type FilterType = 'all' | 'trending' | 'bullish' | 'bearish' | 'high-risk';
 
@@ -19,6 +21,9 @@ interface FeedManagerProps {
 export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoading = false, liveInsightsMap }: FeedManagerProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [page, setPage] = useState(1); // Start at page 1 (page 0 is initialPosts)
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   console.log('FeedManager: liveInsightsMap received:', liveInsightsMap ? Object.keys(liveInsightsMap).length : 0, 'keys');
   console.log('FeedManager: AAPL in map?', liveInsightsMap?.['AAPL']);
@@ -26,7 +31,51 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
   // Update posts when initialPosts changes
   useEffect(() => {
     setPosts(initialPosts);
+    setPage(1); // Reset pagination when initial posts change
+    setHasMore(true); // Reset hasMore flag
   }, [initialPosts]);
+
+  // Intersection observer for infinite scroll
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px', // Start loading 100px before the element comes into view
+  });
+
+  // Fetch more posts when the bottom element comes into view
+  const loadMorePosts = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const result = await fetchMorePosts(page, 10);
+      
+      if (result.error) {
+        console.error('Error loading more posts:', result.error);
+        setHasMore(false);
+        return;
+      }
+      
+      if (result.posts.length > 0) {
+        setPosts(prevPosts => [...prevPosts, ...result.posts]);
+        setPage(prevPage => prevPage + 1);
+        setHasMore(result.hasMore);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading more posts:', error);
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [page, hasMore, isLoadingMore]);
+
+  // Trigger loadMorePosts when the bottom element comes into view
+  useEffect(() => {
+    if (inView && hasMore && !isLoadingMore) {
+      loadMorePosts();
+    }
+  }, [inView, hasMore, isLoadingMore, loadMorePosts]);
 
   const handleDeletePost = (postId: number) => {
     console.log('Deleting post:', postId);
@@ -117,28 +166,49 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
         {isLoading ? (
           <FeedSkeleton count={5} />
         ) : filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => {
-            const initialLikes = post.reactions?.length || 0;
-            const initialUserHasLiked = viewerId 
-              ? post.reactions?.some(r => r.user_id === viewerId) 
-              : false;
-            const initialCommentCount = post.comments?.length || 0;
-            
-            // Get live AI insight for this ticker
-            const liveInsight = liveInsightsMap?.[post.ticker];
+          <>
+            {filteredPosts.map((post) => {
+              const initialLikes = post.reactions?.length || 0;
+              const initialUserHasLiked = viewerId 
+                ? post.reactions?.some(r => r.user_id === viewerId) 
+                : false;
+              const initialCommentCount = post.comments?.length || 0;
+              
+              // Get live AI insight for this ticker
+              const liveInsight = liveInsightsMap?.[post.ticker];
 
-            return (
-              <PostCard
-                key={post.id}
-                post={post}
-                initialLikes={initialLikes}
-                initialUserHasLiked={initialUserHasLiked}
-                initialCommentCount={initialCommentCount}
-                liveInsight={liveInsight}
-                onDelete={() => handleDeletePost(post.id)}
-              />
-            );
-          })
+              return (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  initialLikes={initialLikes}
+                  initialUserHasLiked={initialUserHasLiked}
+                  initialCommentCount={initialCommentCount}
+                  liveInsight={liveInsight}
+                  onDelete={() => handleDeletePost(post.id)}
+                />
+              );
+            })}
+            
+            {/* Infinite scroll trigger */}
+            {hasMore && (
+              <div ref={ref} className="flex justify-center py-8">
+                {isLoadingMore ? (
+                  <FeedSkeleton count={3} />
+                ) : (
+                  <div className="text-muted-foreground text-sm">
+                    Loading more posts...
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {!hasMore && filteredPosts.length > 0 && (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                You've reached the end of the feed
+              </div>
+            )}
+          </>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <p className="text-muted-foreground text-lg">
