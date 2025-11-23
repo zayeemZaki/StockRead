@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import { createPostAction } from '@/app/actions/create-post-action';
 import { Button } from '@/components/ui';
 import {
   Dialog,
@@ -45,21 +46,17 @@ export function CreatePost() {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          ticker: ticker.toUpperCase(),
-          content: content
-        });
+      const result = await createPostAction(ticker, content);
 
-      if (error) throw error;
-      
-      toast.success('Signal posted successfully!');
-      setOpen(false);
-      setTicker('');
-      setContent('');
-      window.location.reload();
+      if (result.success) {
+        toast.success('Signal posted successfully!');
+        setOpen(false);
+        setTicker('');
+        setContent('');
+        window.location.reload();
+      } else {
+        toast.error(result.error || 'Failed to create post');
+      }
     } catch (err: any) {
       toast.error('Error posting: ' + err.message);
     } finally {

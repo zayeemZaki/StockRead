@@ -17,6 +17,7 @@ google-generativeai>=0.3.0
 
 # Utilities
 pytz>=2023.3
+redis>=5.0.0
 
 # Web Framework
 fastapi>=0.104.0
