@@ -62,7 +62,7 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
       />
 
       {isOpen && filteredStocks.length > 0 && (
-        <div className="absolute z-[100] w-full mb-2 bg-popover border border-border rounded-lg shadow-xl max-h-[60vh] overflow-y-auto" style={{ bottom: '100%' }}>
+        <div className="absolute z-[100] w-full mt-2 bg-popover border border-border rounded-lg shadow-xl max-h-[60vh] overflow-y-auto top-full">
           {filteredStocks.map((stock) => (
             <button
               key={stock.symbol}
@@ -90,7 +90,7 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
       )}
 
       {isOpen && query.trim() && filteredStocks.length === 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-lg shadow-xl px-4 py-3 text-muted-foreground text-sm">
+        <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-lg shadow-xl px-4 py-3 text-muted-foreground text-sm top-full">
           No stocks found matching &quot;{query}&quot;
         </div>
       )}
