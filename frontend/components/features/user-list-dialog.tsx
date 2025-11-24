@@ -31,12 +31,6 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    if (open) {
-      fetchUsers();
-    }
-  }, [open, type, userId]);
-
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
@@ -52,7 +46,15 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           throw error;
         }
 
-        const userProfiles = data?.map((item: any) => ({
+        interface FollowItem {
+          profiles: {
+            id: string;
+            username: string;
+            avatar_url: string;
+          };
+        }
+        
+        const userProfiles = data?.map((item: FollowItem) => ({
           id: item.profiles.id,
           username: item.profiles.username,
           avatar_url: item.profiles.avatar_url,
@@ -71,7 +73,15 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           throw error;
         }
 
-        const userProfiles = data?.map((item: any) => ({
+        interface FollowItem {
+          profiles: {
+            id: string;
+            username: string;
+            avatar_url: string;
+          };
+        }
+        
+        const userProfiles = data?.map((item: FollowItem) => ({
           id: item.profiles.id,
           username: item.profiles.username,
           avatar_url: item.profiles.avatar_url,
@@ -86,6 +96,13 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (open) {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, type, userId]);
 
   const getInitials = (username: string) => {
     return username

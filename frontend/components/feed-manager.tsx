@@ -19,7 +19,7 @@ interface FeedManagerProps {
   liveInsightsMap?: Record<string, { ai_score: number; ai_signal: string; ai_risk: string }>;
 }
 
-export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoading = false, liveInsightsMap }: FeedManagerProps) {
+export function FeedManager({ initialPosts, viewerId, isLoading = false, liveInsightsMap }: FeedManagerProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [page, setPage] = useState(1); // Start at page 1 (page 0 is initialPosts)
@@ -112,7 +112,6 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDeletePost = (postId: number) => {
@@ -257,7 +256,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
             
             {!hasMore && filteredPosts.length > 0 && (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                You've reached the end of the feed
+                You&apos;ve reached the end of the feed
               </div>
             )}
           </>

@@ -82,7 +82,14 @@ export function GlobalSearch() {
         const serverPosts = rpcData?.posts || [];
 
         // STEP 4: MERGE STOCKS - Combine local + server with deduplication
-        const mergedStocksMap = new Map<string, any>();
+        interface MergedStock {
+          ticker: string;
+          name: string;
+          domain?: string;
+          count: number;
+          isLocal: boolean;
+        }
+        const mergedStocksMap = new Map<string, MergedStock>();
 
         // Add local matches first
         localMatches.forEach(stock => {
@@ -96,7 +103,11 @@ export function GlobalSearch() {
         });
 
         // Merge server stocks (update count if exists, add new if not)
-        serverStocks.forEach((serverStock: any) => {
+        interface ServerStock {
+          ticker?: string;
+          count?: number;
+        }
+        serverStocks.forEach((serverStock: ServerStock) => {
           const ticker = serverStock.ticker?.toUpperCase();
           if (!ticker) return;
 
@@ -140,7 +151,7 @@ export function GlobalSearch() {
         };
 
         setResults(finalResults);
-      } catch (error) {
+      } catch {
         // Search error - reset results
         setResults({ stocks: [], users: [], posts: [] });
       } finally {
@@ -149,6 +160,7 @@ export function GlobalSearch() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   const getInitials = (name: string) => {
@@ -171,7 +183,19 @@ export function GlobalSearch() {
     return text.slice(0, maxLength) + '...';
   };
 
-  const handleSelect = (type: 'stock' | 'user' | 'post', value: any) => {
+  interface StockValue {
+    ticker: string;
+  }
+  
+  interface UserValue {
+    username: string;
+  }
+  
+  interface PostValue {
+    ticker: string;
+  }
+  
+  const handleSelect = (type: 'stock' | 'user' | 'post', value: StockValue | UserValue | PostValue) => {
     setOpen(false);
     setQuery('');
     
@@ -205,7 +229,7 @@ export function GlobalSearch() {
 
         {query.trim() && !isLoading && !hasResults && (
           <CommandEmpty>
-            No results found for "{query}"
+            No results found for &quot;{query}&quot;
           </CommandEmpty>
         )}
 
@@ -228,6 +252,7 @@ export function GlobalSearch() {
                 >
                   <TrendingUp className="w-5 h-5 text-bullish mr-2" />
                   {logoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={logoUrl}
                       alt={stock.ticker}
