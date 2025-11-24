@@ -9,7 +9,9 @@ export interface ChartDataPoint {
   volume: number;
 }
 
-const rangeConfig: Record<string, { period1: Date; interval: string }> = {
+type YahooInterval = '5m' | '15m' | '1d' | '1wk' | '1m' | '2m' | '30m' | '60m' | '90m' | '1h' | '5d' | '1mo' | '3mo';
+
+const rangeConfig: Record<string, { period1: Date; interval: YahooInterval }> = {
   '1D': { 
     period1: new Date(new Date().setDate(new Date().getDate() - 1)), 
     interval: '5m' 
@@ -68,7 +70,7 @@ export async function getChartData(ticker: string, range: string): Promise<Chart
     
     const chartResult = await yahooFinance.chart(ticker, {
       period1: config.period1,
-      interval: config.interval
+      interval: config.interval as YahooInterval
     }) as YahooChartResult;
 
     // Format chart data for Recharts
