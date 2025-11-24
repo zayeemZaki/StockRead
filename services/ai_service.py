@@ -11,17 +11,18 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-API_KEY = os.environ.get("GOOGLE_API_KEY")
-if not API_KEY:
-    raise ValueError("GOOGLE_API_KEY not found in environment variables")
-
-genai.configure(api_key=API_KEY)
-
 
 class AIService:
     """Handles AI-powered stock analysis using Gemini."""
     
     def __init__(self):
+        """Initialize AI service with Google Gemini API."""
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY not found in environment variables. Required for AI analysis.")
+        
+        genai.configure(api_key=api_key)
+        
         self.model = genai.GenerativeModel(
             model_name='gemini-2.5-flash',
             generation_config={"response_mime_type": "application/json"}
