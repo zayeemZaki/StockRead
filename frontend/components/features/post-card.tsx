@@ -184,7 +184,7 @@ export function PostCard({
             className="flex items-center gap-3 hover:opacity-80 transition-opacity max-w-[65%]"
           >
             <Avatar className="w-10 h-10 border-2 border-border flex-shrink-0">
-              <AvatarImage src={post.profiles?.avatar_url} alt={post.profiles?.username} />
+              <AvatarImage src={post.profiles?.avatar_url ?? undefined} alt={post.profiles?.username} />
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                 {getInitials(post.profiles?.username || 'U')}
               </AvatarFallback>
