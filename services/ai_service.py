@@ -61,24 +61,58 @@ class AIService:
 
         user_thesis_text = user_post_text if user_post_text else "No user thesis provided."
         
+        # Technical Analysis (Enhanced)
         tech_trend = technicals.get('trend', 'Unknown') if technicals else 'Unknown'
         tech_rsi = (
             f"{technicals.get('rsi', 'N/A')} ({technicals.get('rsi_signal', 'N/A')})" 
             if technicals else 'N/A'
         )
+        macd_trend = technicals.get('macd_trend', 'N/A') if technicals else 'N/A'
+        bb_position = technicals.get('bb_position', 'N/A') if technicals else 'N/A'
         
+        # Price & Fundamentals
         price = market_data.get('price', 'N/A')
         mcap = market_data.get('market_cap', 'N/A')
         pe = market_data.get('pe_ratio', 'N/A')
-        short_ratio = market_data.get('short_ratio', 'N/A')
+        forward_pe = market_data.get('forwardPE', 'N/A')
+        peg = market_data.get('peg_ratio', 'N/A')
+        pb = market_data.get('priceToBook', 'N/A')
         
-        # Milestone 19: Institutional Data
+        # Profitability & Growth (STEP 1)
+        roe = market_data.get('returnOnEquity', None)
+        profit_margin = market_data.get('profitMargins', None)
+        revenue_growth = market_data.get('revenueGrowth', None)
+        earnings_growth = market_data.get('earningsGrowth', None)
+        
+        # Financial Health (STEP 1)
+        debt_to_equity = market_data.get('debtToEquity', None)
+        current_ratio = market_data.get('currentRatio', None)
+        
+        # 52-Week Range (STEP 4)
+        week_52_high = market_data.get('fiftyTwoWeekHigh', None)
+        week_52_low = market_data.get('fiftyTwoWeekLow', None)
+        distance_from_high = None
+        distance_from_low = None
+        if week_52_high and isinstance(price, (int, float)):
+            distance_from_high = ((week_52_high - price) / week_52_high) * 100
+        if week_52_low and isinstance(price, (int, float)):
+            distance_from_low = ((price - week_52_low) / week_52_low) * 100
+        
+        # Dividend (STEP 5)
+        div_yield = market_data.get('dividendYield', None)
+        payout_ratio = market_data.get('payoutRatio', None)
+        
+        # Sector Context (STEP 3)
+        sector = market_data.get('sector', 'Unknown')
+        industry = market_data.get('industry', 'Unknown')
+        
+        # Institutional Data
         target_mean = market_data.get('targetMean', None)
         recommendation = market_data.get('recommendationKey', None)
         short_float = market_data.get('shortPercentOfFloat', None)
         insider_ownership = market_data.get('heldPercentInsiders', None)
         
-        # Milestone 19: Macro Context
+        # Macro Context
         vix_status = "Unknown"
         vix_value = "N/A"
         if macro_context:
@@ -96,11 +130,37 @@ class AIService:
         🌍 MACRO CONTEXT:
         - Market Mood: {vix_status} (VIX: {vix_value})
         
-        📈 FUNDAMENTALS & PRICE:
+        📍 SECTOR & INDUSTRY:
+        - Sector: {sector}
+        - Industry: {industry}
+        
+        📈 VALUATION & FUNDAMENTALS:
         - Current Price: ${price}
         - Market Cap: {mcap}
-        - P/E Ratio: {pe}
-        - Short Ratio: {short_ratio}
+        - Trailing P/E: {pe}
+        - Forward P/E: {forward_pe}
+        - PEG Ratio: {peg}
+        - Price/Book: {pb}
+        
+        💰 PROFITABILITY & GROWTH:
+        - Return on Equity: {(roe * 100) if roe else 'N/A'}%
+        - Profit Margin: {(profit_margin * 100) if profit_margin else 'N/A'}%
+        - Revenue Growth: {(revenue_growth * 100) if revenue_growth else 'N/A'}%
+        - Earnings Growth: {(earnings_growth * 100) if earnings_growth else 'N/A'}%
+        
+        🏦 FINANCIAL HEALTH:
+        - Debt/Equity: {debt_to_equity if debt_to_equity else 'N/A'}
+        - Current Ratio: {current_ratio if current_ratio else 'N/A'}
+        
+        💵 DIVIDEND (if applicable):
+        - Dividend Yield: {(div_yield * 100) if div_yield else 'N/A'}%
+        - Payout Ratio: {(payout_ratio * 100) if payout_ratio else 'N/A'}%
+        
+        📊 52-WEEK RANGE ANALYSIS:
+        - 52W High: ${week_52_high if week_52_high else 'N/A'}
+        - 52W Low: ${week_52_low if week_52_low else 'N/A'}
+        - Distance from High: {round(distance_from_high, 1) if distance_from_high else 'N/A'}%
+        - Distance from Low: +{round(distance_from_low, 1) if distance_from_low else 'N/A'}%
         
         🏛️ INSTITUTIONAL DATA (Wall Street Intelligence):
         - Analyst Target: ${target_mean if target_mean else 'N/A'}
@@ -108,9 +168,11 @@ class AIService:
         - Short Float: {(short_float * 100) if short_float else 'N/A'}%
         - Insider Ownership: {(insider_ownership * 100) if insider_ownership else 'N/A'}%
         
-        📉 TECHNICAL ANALYSIS:
+        📉 TECHNICAL ANALYSIS (Enhanced):
         - Trend: {tech_trend}
         - RSI: {tech_rsi}
+        - MACD Signal: {macd_trend}
+        - Bollinger Band Position: {bb_position}
         
         📰 NEWS HEADLINES:
         {news_summary}
@@ -120,33 +182,77 @@ class AIService:
         ═══════════════════════════════════════════════════════════════════════════
         
         Weight the evidence as follows:
-        - Fundamentals: 15% (P/E ratio, market cap) - REDUCED WEIGHT
-        - Technicals: 25% (trend, RSI, momentum factors)
-        - News: 25% (sentiment from headlines)
-        - Institutional/Consensus: 40% (analyst target vs price, short float, insider ownership, Wall Street consensus) - INCREASED WEIGHT
+        - Fundamentals & Profitability: 15% (P/E, ROE, margins, growth rates)
+        - Technicals: 25% (trend, RSI, MACD, Bollinger Bands)
+        - News Sentiment: 20% (headline sentiment)
+        - Institutional/Consensus: 40% (analyst target, ratings, institutional holdings) - PRIMARY DRIVER
         
         Apply these OBJECTIVE RULES:
-        1. THE 'MAGNIFICENT 7' PREMIUM VALUATION RULE: For market leaders (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA):
-           - If Analyst Consensus is 'Buy' or 'Strong Buy', P/E ratios between 25-50 are NORMAL and should NOT be penalized
-           - Refer to high P/E as "Premium Valuation" NOT "Overvaluation" in these cases
-           - These stocks trade at premium multiples due to growth expectations and market leadership
         
-        2. TARGET PRICE UPSIDE RULE (PRIMARY SCORE DRIVER):
-           - If current price is 15%+ below analyst target → Score should be 70-85 range (Strong Buy territory)
-           - If current price is 10-15% below target → Score should be 65-75 range (Buy territory)
-           - If current price is 5-10% below target → Score should be 55-65 range (Hold/Accumulate)
-           - Target price upside should OVERRIDE P/E concerns when analyst consensus is positive
+        1. TARGET PRICE UPSIDE RULE (PRIMARY SCORE DRIVER):
+           - 15%+ below target → Score 70-85 (Strong Buy)
+           - 10-15% below target → Score 65-75 (Buy)
+           - 5-10% below target → Score 55-65 (Hold/Accumulate)
+           - At or above target → Score 40-55 (Hold/Trim)
+           - Target price upside OVERRIDES valuation concerns when consensus is Buy/Strong Buy
         
-        3. VIX RULE: If VIX > 30 (Extreme Fear), reduce bullish scores by 10-15 points
-           (Exception: Defensive sectors like utilities, healthcare get immunity)
+        2. VALUATION CONTEXT RULES:
+           a) MAGNIFICENT 7 PREMIUM (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA):
+              - P/E 25-50 is NORMAL if consensus is Buy/Strong Buy
+              - Call it "Premium Valuation" NOT "Overvaluation"
+              - PEG < 2.0 validates premium multiples
+           
+           b) GROWTH STOCKS (Revenue Growth > 20%):
+              - Forward P/E more important than trailing P/E
+              - PEG Ratio < 1.5 = Attractive, even if P/E seems high
+              - Strong earnings growth (>25%) justifies P/E up to 40
+           
+           c) VALUE STOCKS (P/E < 15, Dividend Yield > 3%):
+              - Focus on ROE, profit margins, debt levels
+              - Current Ratio > 1.5 = Strong balance sheet
+              - Dividend yield + payout ratio sustainability matters
+           
+           d) SECTOR-RELATIVE VALUATION:
+              - Tech: P/E 20-35 is normal
+              - Healthcare/Pharma: P/E 15-25 is normal
+              - Utilities/REITs: Focus on dividend yield (3-5%)
+              - Financials: Use P/B ratio, target < 1.5
         
-        4. SHORT SQUEEZE RULE: If short float > 20%, flag potential volatility
+        3. PROFITABILITY QUALITY RULES:
+           - ROE > 15% = Excellent (add 5-10 points)
+           - ROE 10-15% = Good (neutral)
+           - ROE < 10% = Weak (subtract 5 points)
+           - Profit Margin > 20% = High quality business
+           - Debt/Equity > 2.0 = Financial risk (subtract 5 points unless in Financials sector)
         
-        5. INSIDER CONFIDENCE RULE: If insider ownership > 15%, add 5 bullish points
+        4. 52-WEEK RANGE MOMENTUM RULES:
+           - Within 5% of 52W High + RSI < 70 = Bullish Breakout (add 10 points)
+           - Within 5% of 52W High + RSI > 75 = Overbought Risk (subtract 5 points)
+           - Within 10% of 52W Low + Positive Consensus = Deep Value Buy (add 15 points)
+           - Within 10% of 52W Low + Negative Consensus = Falling Knife (subtract 10 points)
         
-        6. MOMENTUM FACTOR: If the stock is within 5% of its 52-Week High, treat this as a Bullish Momentum signal, not an Overbought signal, unless RSI is > 80.
+        5. TECHNICAL CONFLUENCE RULES:
+           - UPTREND + MACD Bullish + RSI 40-60 = Strong Technical Setup (add 10 points)
+           - DOWNTREND + MACD Bearish + RSI < 40 = Avoid (subtract 15 points)
+           - Bollinger Band Lower + RSI < 30 = Oversold Bounce Setup (add 10 points if fundamentals solid)
+           - Bollinger Band Upper + RSI > 70 = Overbought (subtract 5 points)
         
-        Calculate your OBJECTIVE Market Score (0-100) based ONLY on the evidence above.
+        6. VIX & MACRO RULES:
+           - VIX > 30 (Extreme Fear): Reduce bullish scores by 10-15 points
+             Exception: Defensive sectors (Utilities, Healthcare, Consumer Staples) immune
+           - VIX < 15 (Complacency): Add 5 points to quality stocks
+        
+        7. INSTITUTIONAL CONFIDENCE RULES:
+           - Insider Ownership > 15% = Strong confidence (add 5 points)
+           - Short Float > 20% = High volatility risk (flag in risk assessment)
+           - Short Float > 30% + Positive news = Potential squeeze (add 10 points to risk but note opportunity)
+        
+        8. DIVIDEND QUALITY RULES (for Income Stocks):
+           - Yield 3-5% + Payout Ratio < 70% = Sustainable (add 5 points)
+           - Yield > 6% + Payout Ratio > 80% = Dividend risk (subtract 5 points)
+           - No dividend for growth stocks = Neutral (don't penalize)
+        
+        Calculate your OBJECTIVE Market Score (0-100) based on these weighted factors and rules.
         
         ═══════════════════════════════════════════════════════════════════════════
         💭 SECTION 2: USER THESIS COMPARISON (SUBJECTIVE ANALYSIS)
@@ -167,19 +273,24 @@ class AIService:
         
         {{
             "user_thesis": "Bullish" | "Bearish" | "Neutral",
-            "summary": "2-3 sentences. Start with the OBJECTIVE market reality (score + key factors). Then compare to user's thesis. Mention specific God Mode factors (analyst target gap, short squeeze risk, insider confidence, VIX impact). For Magnificent 7 stocks, use 'Premium Valuation' language, not 'Overvaluation', when consensus is positive.",
+            "summary": "2-3 sentences maximum. Start with OBJECTIVE score and PRIMARY DRIVER (target upside, technical setup, or profitability). Include key factors: ROE/margins, 52W position, MACD/BB signals, sector context. Compare to user thesis. Use 'Premium Valuation' for quality growth stocks, not 'Overvaluation'.",
             "sentiment_score": <YOUR OBJECTIVE MARKET SCORE 0-100>,
             "risk_level": "Low" | "Medium" | "High" | "Extreme",
             "tags": ["Tag1", "Tag2", "Tag3"]
         }}
         
-        CRITICAL RULES:
-        - "sentiment_score" = Your OBJECTIVE Market Score (ignore user's opinion)
-        - The PRIMARY DRIVER for high scores (70-85) should be Target Price Upside, NOT just fundamentals
-        - "user_thesis" = What the user thinks (extracted from their text)
-        - "summary" = First state objective reality, then compare to user's view
-        - For market leaders with Buy consensus, acknowledge "Premium Valuation" (not "Overvaluation")
-        - Risk factors: High VIX + High Short Float + Negative Consensus = Extreme Risk
+        CRITICAL OUTPUT RULES:
+        - "sentiment_score" = Objective Market Score (0-100), user opinion does NOT influence this
+        - PRIMARY DRIVERS for score (in order):
+          1. Target Price Upside vs Current Price
+          2. Technical Confluence (Trend + MACD + RSI + Bollinger Bands)
+          3. Profitability Quality (ROE, margins, growth rates)
+          4. 52-Week Range Position + Momentum
+        - "summary" structure: "[Score] driven by [primary factor]. [Key supporting data]. [User comparison]."
+        - Risk assessment: VIX + Short Float + Debt/Equity + Technical Breakdown + Negative Consensus
+        - Growth stocks: Use Forward P/E and PEG, mention "Premium Valuation" if justified
+        - Value stocks: Focus on yield, ROE, and balance sheet strength
+        - Tags: Include sector, signal type, and key characteristic (e.g., "Technology", "Strong Buy", "High Growth")
         """
 
         try:

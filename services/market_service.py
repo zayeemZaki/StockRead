@@ -133,7 +133,34 @@ class MarketDataService:
                 "numberOfAnalystOpinions": info.get('numberOfAnalystOpinions'),
                 "shortPercentOfFloat": info.get('shortPercentOfFloat'),  # Short interest
                 "heldPercentInsiders": info.get('heldPercentInsiders'),  # Insider ownership
-                "heldPercentInstitutions": info.get('heldPercentInstitutions')  # Institutional ownership
+                "heldPercentInstitutions": info.get('heldPercentInstitutions'),  # Institutional ownership
+                # Profitability Metrics (STEP 1)
+                "returnOnEquity": info.get('returnOnEquity'),  # ROE - profitability measure
+                "returnOnAssets": info.get('returnOnAssets'),  # ROA - asset efficiency
+                "profitMargins": info.get('profitMargins'),  # Net profit margin
+                "operatingMargins": info.get('operatingMargins'),  # Operating efficiency
+                # Financial Health (STEP 1)
+                "debtToEquity": info.get('debtToEquity'),  # Leverage ratio
+                "currentRatio": info.get('currentRatio'),  # Liquidity measure
+                "quickRatio": info.get('quickRatio'),  # Liquidity without inventory
+                # Growth Metrics (STEP 1)
+                "revenueGrowth": info.get('revenueGrowth'),  # YoY revenue growth
+                "earningsGrowth": info.get('earningsGrowth'),  # YoY earnings growth
+                # Dividend Info (STEP 5)
+                "dividendYield": info.get('dividendYield'),  # Dividend yield %
+                "payoutRatio": info.get('payoutRatio'),  # Dividend payout ratio
+                "fiveYearAvgDividendYield": info.get('fiveYearAvgDividendYield'),
+                # 52-Week Range (STEP 4)
+                "fiftyTwoWeekHigh": info.get('fiftyTwoWeekHigh'),
+                "fiftyTwoWeekLow": info.get('fiftyTwoWeekLow'),
+                # Sector Context (STEP 3)
+                "sector": info.get('sector'),
+                "industry": info.get('industry'),
+                # Valuation
+                "forwardPE": info.get('forwardPE'),  # Forward P/E
+                "priceToBook": info.get('priceToBook'),  # P/B ratio
+                "enterpriseToRevenue": info.get('enterpriseToRevenue'),
+                "enterpriseToEbitda": info.get('enterpriseToEbitda')
             }
             
             # Step C: Write Cache
@@ -235,6 +262,9 @@ class MarketDataService:
             df.ta.rsi(length=14, append=True)
             df.ta.sma(length=20, append=True)
             df.ta.sma(length=50, append=True)
+            # STEP 2: Add MACD and Bollinger Bands
+            df.ta.macd(append=True)  # MACD for trend strength
+            df.ta.bbands(length=20, std=2, append=True)  # Bollinger Bands for volatility
             
             latest = df.iloc[-1]
             
@@ -243,19 +273,56 @@ class MarketDataService:
             sma_20 = latest['SMA_20']
             sma_50 = latest['SMA_50']
             
+            # STEP 2: Extract MACD values
+            macd = latest.get('MACD_12_26_9', None)
+            macd_signal = latest.get('MACDs_12_26_9', None)
+            macd_histogram = latest.get('MACDh_12_26_9', None)
+            
+            # STEP 2: Extract Bollinger Bands
+            bb_upper = latest.get('BBU_20_2.0', None)
+            bb_middle = latest.get('BBM_20_2.0', None)
+            bb_lower = latest.get('BBL_20_2.0', None)
+            
+            # Enhanced trend analysis with MACD
             trend = "NEUTRAL"
             if price > sma_20 and sma_20 > sma_50:
-                trend = "UPTREND (Strong)"
+                if macd is not None and macd_signal is not None and macd > macd_signal:
+                    trend = "STRONG UPTREND"
+                else:
+                    trend = "UPTREND"
             elif price < sma_20 and sma_20 < sma_50:
-                trend = "DOWNTREND (Weak)"
+                if macd is not None and macd_signal is not None and macd < macd_signal:
+                    trend = "STRONG DOWNTREND"
+                else:
+                    trend = "DOWNTREND"
             elif price > sma_50:
                 trend = "RECOVERING"
 
             rsi_signal = "Neutral"
             if rsi > 70: 
-                rsi_signal = "OVERBOUGHT (Risk of Pullback)"
+                rsi_signal = "OVERBOUGHT"
             elif rsi < 30: 
-                rsi_signal = "OVERSOLD (Potential Bounce)"
+                rsi_signal = "OVERSOLD"
+            
+            # STEP 2: Bollinger Band position (volatility context)
+            bb_position = "MIDDLE"
+            if bb_upper and bb_lower:
+                if price >= bb_upper:
+                    bb_position = "UPPER (High Volatility)"
+                elif price <= bb_lower:
+                    bb_position = "LOWER (High Volatility)"
+                elif bb_middle and price > bb_middle:
+                    bb_position = "ABOVE MIDDLE"
+                elif bb_middle and price < bb_middle:
+                    bb_position = "BELOW MIDDLE"
+            
+            # STEP 2: MACD signal
+            macd_trend = "NEUTRAL"
+            if macd is not None and macd_signal is not None:
+                if macd > macd_signal and macd_histogram and macd_histogram > 0:
+                    macd_trend = "BULLISH"
+                elif macd < macd_signal and macd_histogram and macd_histogram < 0:
+                    macd_trend = "BEARISH"
             
             data = {
                 "current_price": round(price, 2),
@@ -263,7 +330,16 @@ class MarketDataService:
                 "rsi_signal": rsi_signal,
                 "trend": trend,
                 "sma_20": round(sma_20, 2),
-                "sma_50": round(sma_50, 2)
+                "sma_50": round(sma_50, 2),
+                # STEP 2: MACD data
+                "macd": round(macd, 4) if macd is not None else None,
+                "macd_signal": round(macd_signal, 4) if macd_signal is not None else None,
+                "macd_histogram": round(macd_histogram, 4) if macd_histogram is not None else None,
+                "macd_trend": macd_trend,
+                # STEP 2: Bollinger Bands
+                "bb_upper": round(bb_upper, 2) if bb_upper is not None else None,
+                "bb_lower": round(bb_lower, 2) if bb_lower is not None else None,
+                "bb_position": bb_position
             }
             
             # Step C: Write Cache

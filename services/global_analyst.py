@@ -280,6 +280,23 @@ Respond ONLY with valid JSON (no markdown):
                 'target_price': safe_float(market_data.get('targetMean')),
                 'short_float': safe_float(market_data.get('shortPercentOfFloat')),
                 'insider_held': safe_float(market_data.get('heldPercentInsiders')),
+                # Enhanced fundamental metrics
+                'roe': safe_float(market_data.get('returnOnEquity')),
+                'profit_margin': safe_float(market_data.get('profitMargins')),
+                'revenue_growth': safe_float(market_data.get('revenueGrowth')),
+                'earnings_growth': safe_float(market_data.get('earningsGrowth')),
+                'debt_to_equity': safe_float(market_data.get('debtToEquity')),
+                'current_ratio': safe_float(market_data.get('currentRatio')),
+                # Dividend metrics
+                'dividend_yield': safe_float(market_data.get('dividendYield')),
+                'payout_ratio': safe_float(market_data.get('payoutRatio')),
+                # 52-week range
+                'week_52_high': safe_float(market_data.get('fiftyTwoWeekHigh')),
+                'week_52_low': safe_float(market_data.get('fiftyTwoWeekLow')),
+                # Sector context
+                'sector': market_data.get('sector'),
+                'industry': market_data.get('industry'),
+                # Macro context
                 'vix': safe_float(macro_context.get('vix')) if macro_context else None,
                 'market_sentiment': macro_context.get('market_sentiment') if macro_context else None,
                 'updated_at': datetime.now(timezone.utc).isoformat()
@@ -394,6 +411,22 @@ Respond ONLY with valid JSON (no markdown):
                     'target_price': safe_float(market_data.get('targetMean')),
                     'short_float': safe_float(market_data.get('shortPercentOfFloat')),
                     'insider_held': safe_float(market_data.get('heldPercentInsiders')),
+                    # Enhanced fundamental metrics
+                    'roe': safe_float(market_data.get('returnOnEquity')),
+                    'profit_margin': safe_float(market_data.get('profitMargins')),
+                    'revenue_growth': safe_float(market_data.get('revenueGrowth')),
+                    'earnings_growth': safe_float(market_data.get('earningsGrowth')),
+                    'debt_to_equity': safe_float(market_data.get('debtToEquity')),
+                    'current_ratio': safe_float(market_data.get('currentRatio')),
+                    # Dividend metrics
+                    'dividend_yield': safe_float(market_data.get('dividendYield')),
+                    'payout_ratio': safe_float(market_data.get('payoutRatio')),
+                    # 52-week range
+                    'week_52_high': safe_float(market_data.get('fiftyTwoWeekHigh')),
+                    'week_52_low': safe_float(market_data.get('fiftyTwoWeekLow')),
+                    # Sector context
+                    'sector': market_data.get('sector'),
+                    'industry': market_data.get('industry'),
                     # Macro context
                     'vix': safe_float(macro_context.get('vix')) if macro_context else None,
                     'market_sentiment': macro_context.get('market_sentiment') if macro_context else None,
