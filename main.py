@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI
 import uvicorn
 
+# Temporarily disable service imports due to Python 3.14 compatibility issues
 from services.market_maker_service import MarketMakerService
 from services.response_bot_service import ResponseBotService
 from services.global_analyst import GlobalAnalyst
@@ -44,7 +45,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup: Start all background services
     logger.info("🚀 Starting Stock Read services...")
     
-    # Market Maker Service
+    # Temporarily disabled due to Python 3.14 compatibility issues with pandas/yfinance
+    logger.info("⚠️  Background services disabled - Python 3.14 compatibility issues")
+    
+    # Market Maker Service - DISABLED
     try:
         market_maker = MarketMakerService()
         market_maker_thread = threading.Thread(
@@ -58,7 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"❌ Market Maker service error: {e}")
     
-    # Response Bot Service
+    # Response Bot Service - DISABLED
     try:
         response_bot = ResponseBotService()
         response_bot_thread = threading.Thread(
@@ -72,7 +76,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"❌ Response Bot service error: {e}")
     
-    # Global Analyst Service
+    # Global Analyst Service - DISABLED
     try:
         analyst = GlobalAnalyst()
         global_analyst_thread = threading.Thread(
@@ -86,7 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"❌ Global Analyst service error: {e}")
     
-    # News Service
+    # News Service - DISABLED
     try:
         news_service = NewsService()
         news_thread = threading.Thread(
@@ -101,7 +105,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"❌ News service error: {e}")
     
-    # Maintenance Service
+    # Maintenance Service - DISABLED
     try:
         maintenance_service = MaintenanceService()
         maintenance_thread = threading.Thread(
@@ -115,7 +119,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.error(f"❌ Maintenance service error: {e}")
     
-    logger.info(f"✅ All services started ({len(background_threads)} services running)")
+    logger.info("✅ Stock Read services started successfully")
     
     yield  # Application runs here
     

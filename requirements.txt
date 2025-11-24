@@ -4,8 +4,8 @@ supabase>=2.0.0
 python-dotenv>=1.0.0
 pandas>=2.0.0
 
-# Technical analysis (optional but recommended)
-pandas-ta>=0.3.14b0
+# Technical analysis (optional but recommended) - commented out due to Python 3.14 compatibility
+# pandas-ta>=0.3.14b0
 
 # News and data
 GoogleNews>=1.6.11

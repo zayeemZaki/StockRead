@@ -13,13 +13,27 @@ export async function createPostAction(ticker: string, content: string) {
       return { success: false, error: 'User not authenticated' };
     }
 
-    // DB Write
+    // Fetch user profile for denormalized data
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      return { success: false, error: 'Failed to fetch user profile' };
+    }
+
+    // DB Write with denormalized author data
     const { data, error: dbError } = await supabase
       .from('posts')
       .insert({
         user_id: user.id,
         ticker: ticker.toUpperCase(),
         content: content,
+        author_username: profile.username,
+        author_avatar: profile.avatar_url,
       })
       .select('id')
       .single();

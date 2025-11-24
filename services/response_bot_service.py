@@ -4,6 +4,7 @@ import time
 import logging
 import redis
 import json
+import os
 from datetime import datetime, timezone
 from services.market_service import MarketDataService
 from services.ai_service import AIService

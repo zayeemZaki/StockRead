@@ -69,16 +69,16 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
       posts = rawPosts.map(post => ({
         ...post,
         profiles: {
-          username: post.author_username,
-          avatar_url: post.author_avatar
+          username: post.author_username || 'Unknown',
+          avatar_url: post.author_avatar || null
         }
       })) as Post[];
     } else {
       posts = (rawPosts || []).map(post => ({
         ...post,
         profiles: {
-          username: post.author_username,
-          avatar_url: post.author_avatar
+          username: post.author_username || 'Unknown',
+          avatar_url: post.author_avatar || null
         }
       })) as Post[];
     }

@@ -39,8 +39,8 @@ export default async function Home() {
   const mappedPosts = (posts || []).map(post => ({
     ...post,
     profiles: {
-      username: post.author_username,
-      avatar_url: post.author_avatar
+      username: post.author_username || 'Unknown',
+      avatar_url: post.author_avatar || null
     }
   }));
 

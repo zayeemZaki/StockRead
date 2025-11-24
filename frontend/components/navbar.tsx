@@ -24,6 +24,7 @@ import {
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOut, Settings, User as UserIcon, Search, Palette, Sun, Moon, Monitor } from 'lucide-react';
+import { MobileMarketSheet } from '@/components/features/mobile-market-sheet';
 
 export function Navbar() {
   const [user, setUser] = useState<User | null>(null);
@@ -137,6 +138,7 @@ export function Navbar() {
 
           {/* Right Side - Auth */}
           <div className="flex items-center gap-4">
+            <MobileMarketSheet />
             {loading ? (
               <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
             ) : user && profile ? (

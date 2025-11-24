@@ -42,7 +42,11 @@ interface StockPrice {
   updated_at: string;
 }
 
-export function MarketSidebar() {
+interface MarketSidebarProps {
+  mobile?: boolean;
+}
+
+export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState(true);
   const [stockPrices, setStockPrices] = useState<Record<string, StockPrice>>({});
@@ -155,14 +159,14 @@ export function MarketSidebar() {
 
   if (isLoading) {
     return (
-      <Card className="h-[calc(100vh-100px)] flex flex-col sticky top-24 overflow-hidden p-6">
+      <Card className={`${mobile ? 'h-full' : 'h-[calc(100vh-100px)]'} flex flex-col ${mobile ? '' : 'sticky top-24'} overflow-hidden p-6`}>
         <SidebarSkeleton />
       </Card>
     );
   }
 
   return (
-    <Card className="h-[calc(100vh-100px)] flex flex-col sticky top-24 overflow-hidden">
+    <Card className={`${mobile ? 'h-full' : 'h-[calc(100vh-100px)]'} flex flex-col ${mobile ? '' : 'sticky top-24'} overflow-hidden`}>
       {/* Top Section: Stocks (70%) */}
       <div className="h-[70%] flex flex-col min-h-0">
         {/* Fixed Header */}
