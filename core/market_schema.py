@@ -90,6 +90,7 @@ class MarketDataSchema(BaseModel):
     priceToBook: Optional[float] = Field(None, description="Price-to-book ratio")
     enterpriseToRevenue: Optional[float] = Field(None, description="Enterprise to revenue")
     enterpriseToEbitda: Optional[float] = Field(None, description="Enterprise to EBITDA")
+    beta: Optional[float] = Field(None, ge=0, description="Beta - stock volatility relative to market (1 = market average, >1 = more volatile, <1 = less volatile)")
     
     # Analyst data
     recommendationKey: Optional[str] = Field(None, max_length=20, description="Analyst recommendation")
@@ -135,7 +136,7 @@ class MarketDataSchema(BaseModel):
     def validate_price(cls, v):
         return validate_price(v)
     
-    @validator('pe_ratio', 'peg_ratio', 'forwardPE', 'priceToBook', 'enterpriseToRevenue', 'enterpriseToEbitda', pre=True)
+    @validator('pe_ratio', 'peg_ratio', 'forwardPE', 'priceToBook', 'enterpriseToRevenue', 'enterpriseToEbitda', 'beta', pre=True)
     def validate_ratios(cls, v):
         return validate_ratio(v)
     

@@ -143,9 +143,9 @@ export function PostCard({
     return 'bg-warning/90 text-warning-foreground border-warning';
   };
 
-  // Always show financial data section if post has a ticker
-  // Data will show "N/A" if not available
-  const hasFinancialData = !!post.ticker;
+  // Only show financial data section when AI analysis has been completed
+  // Check if AI has analyzed (has ai_score or ai_summary)
+  const hasFinancialData = !!(post.ai_score !== null && post.ai_score !== undefined) || !!(post.ai_summary && post.ai_summary.trim() !== '');
   const hasPriceHistory = post.price_history && Array.isArray(post.price_history) && post.price_history.length > 0;
   
   const getChartColor = () => {

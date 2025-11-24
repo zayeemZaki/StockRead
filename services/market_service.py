@@ -169,7 +169,9 @@ class MarketDataService:
                 "forwardPE": info.get('forwardPE'),  # Forward P/E
                 "priceToBook": info.get('priceToBook'),  # P/B ratio
                 "enterpriseToRevenue": info.get('enterpriseToRevenue'),
-                "enterpriseToEbitda": info.get('enterpriseToEbitda')
+                "enterpriseToEbitda": info.get('enterpriseToEbitda'),
+                # Beta - measures stock volatility relative to market (1 = market average, >1 = more volatile, <1 = less volatile)
+                "beta": info.get('beta')
             }
             
             # Validate and sanitize data using Pydantic schema
