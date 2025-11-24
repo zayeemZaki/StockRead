@@ -120,18 +120,30 @@ class AIService:
         ═══════════════════════════════════════════════════════════════════════════
         
         Weight the evidence as follows:
-        - Fundamentals: 20% (P/E ratio, market cap, institutional data)
+        - Fundamentals: 15% (P/E ratio, market cap) - REDUCED WEIGHT
         - Technicals: 25% (trend, RSI, momentum factors)
         - News: 25% (sentiment from headlines)
-        - Institutional/Consensus: 30% (analyst target vs price, short float, insider ownership, Wall Street consensus)
+        - Institutional/Consensus: 40% (analyst target vs price, short float, insider ownership, Wall Street consensus) - INCREASED WEIGHT
         
         Apply these OBJECTIVE RULES:
-        1. THE 'MAGNIFICENT 7' RULE: For market leaders (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA), do NOT penalize a P/E ratio under 50 if the PEG ratio is reasonable (< 2.5) or Analyst Consensus is Buy/Strong Buy.
-        2. VIX RULE: If VIX > 30 (Extreme Fear), reduce bullish scores by 10-15 points
+        1. THE 'MAGNIFICENT 7' PREMIUM VALUATION RULE: For market leaders (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA):
+           - If Analyst Consensus is 'Buy' or 'Strong Buy', P/E ratios between 25-50 are NORMAL and should NOT be penalized
+           - Refer to high P/E as "Premium Valuation" NOT "Overvaluation" in these cases
+           - These stocks trade at premium multiples due to growth expectations and market leadership
+        
+        2. TARGET PRICE UPSIDE RULE (PRIMARY SCORE DRIVER):
+           - If current price is 15%+ below analyst target → Score should be 70-85 range (Strong Buy territory)
+           - If current price is 10-15% below target → Score should be 65-75 range (Buy territory)
+           - If current price is 5-10% below target → Score should be 55-65 range (Hold/Accumulate)
+           - Target price upside should OVERRIDE P/E concerns when analyst consensus is positive
+        
+        3. VIX RULE: If VIX > 30 (Extreme Fear), reduce bullish scores by 10-15 points
            (Exception: Defensive sectors like utilities, healthcare get immunity)
-        3. VALUATION RULE: If price is 20%+ below analyst target, add 5-10 bullish points
+        
         4. SHORT SQUEEZE RULE: If short float > 20%, flag potential volatility
+        
         5. INSIDER CONFIDENCE RULE: If insider ownership > 15%, add 5 bullish points
+        
         6. MOMENTUM FACTOR: If the stock is within 5% of its 52-Week High, treat this as a Bullish Momentum signal, not an Overbought signal, unless RSI is > 80.
         
         Calculate your OBJECTIVE Market Score (0-100) based ONLY on the evidence above.
@@ -155,7 +167,7 @@ class AIService:
         
         {{
             "user_thesis": "Bullish" | "Bearish" | "Neutral",
-            "summary": "2-3 sentences. Start with the OBJECTIVE market reality (score + key factors). Then compare to user's thesis. Mention specific God Mode factors (analyst target gap, short squeeze risk, insider confidence, VIX impact).",
+            "summary": "2-3 sentences. Start with the OBJECTIVE market reality (score + key factors). Then compare to user's thesis. Mention specific God Mode factors (analyst target gap, short squeeze risk, insider confidence, VIX impact). For Magnificent 7 stocks, use 'Premium Valuation' language, not 'Overvaluation', when consensus is positive.",
             "sentiment_score": <YOUR OBJECTIVE MARKET SCORE 0-100>,
             "risk_level": "Low" | "Medium" | "High" | "Extreme",
             "tags": ["Tag1", "Tag2", "Tag3"]
@@ -163,9 +175,11 @@ class AIService:
         
         CRITICAL RULES:
         - "sentiment_score" = Your OBJECTIVE Market Score (ignore user's opinion)
+        - The PRIMARY DRIVER for high scores (70-85) should be Target Price Upside, NOT just fundamentals
         - "user_thesis" = What the user thinks (extracted from their text)
         - "summary" = First state objective reality, then compare to user's view
-        - Risk factors: High VIX + High Short Float + Overvalued = Extreme Risk
+        - For market leaders with Buy consensus, acknowledge "Premium Valuation" (not "Overvaluation")
+        - Risk factors: High VIX + High Short Float + Negative Consensus = Extreme Risk
         """
 
         try:

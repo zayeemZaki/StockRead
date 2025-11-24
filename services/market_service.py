@@ -124,7 +124,16 @@ class MarketDataService:
                 "market_cap": mcap_str,
                 "pe_ratio": info.get('trailingPE', 'N/A'),
                 "peg_ratio": info.get('pegRatio', 'N/A'),
-                "short_ratio": info.get('shortRatio', 'N/A')
+                "short_ratio": info.get('shortRatio', 'N/A'),
+                # Institutional & Analyst Data (God Mode)
+                "recommendationKey": info.get('recommendationKey'),  # buy, hold, sell
+                "targetMean": info.get('targetMeanPrice'),  # Analyst average target price
+                "targetHigh": info.get('targetHighPrice'),  # Analyst high target
+                "targetLow": info.get('targetLowPrice'),  # Analyst low target
+                "numberOfAnalystOpinions": info.get('numberOfAnalystOpinions'),
+                "shortPercentOfFloat": info.get('shortPercentOfFloat'),  # Short interest
+                "heldPercentInsiders": info.get('heldPercentInsiders'),  # Insider ownership
+                "heldPercentInstitutions": info.get('heldPercentInstitutions')  # Institutional ownership
             }
             
             # Step C: Write Cache
@@ -325,6 +334,8 @@ def main():
         if market:
             logger.info(f"Price: ${market['price']} ({market['change_percent']}%)")
             logger.info(f"Market Cap: {market.get('market_cap')}, P/E: {market.get('pe_ratio')}")
+            logger.info(f"Analyst Rating: {market.get('recommendationKey')}, Target: ${market.get('targetMean')}")
+            logger.info(f"Short Float: {market.get('shortPercentOfFloat')}, Insider Hold: {market.get('heldPercentInsiders')}")
         
         techs = service.get_technical_analysis(ticker)
         if techs:
