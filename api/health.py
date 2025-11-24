@@ -33,12 +33,20 @@ async def healthz():
     try:
         redis_url = os.getenv("REDIS_URL")
         if redis_url and redis:
-            r = redis.from_url(redis_url, socket_connect_timeout=2)
-            r.ping()
-            health_status["services"]["redis"] = {
-                "status": "connected",
-                "configured": True
-            }
+            # Validate Redis URL format
+            if not redis_url.startswith(('redis://', 'rediss://', 'unix://')):
+                health_status["services"]["redis"] = {
+                    "status": "error",
+                    "configured": True,
+                    "error": "Invalid Redis URL format. Must start with redis://, rediss://, or unix://"
+                }
+            else:
+                r = redis.from_url(redis_url, socket_connect_timeout=2)
+                r.ping()
+                health_status["services"]["redis"] = {
+                    "status": "connected",
+                    "configured": True
+                }
         elif redis_url:
             health_status["services"]["redis"] = {
                 "status": "not_available",
