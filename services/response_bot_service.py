@@ -74,11 +74,27 @@ class ResponseBotService:
         self.db = DatabaseService()
         self.data_engine = MarketDataService()
         self.ai_bot = AIService()
-        self.redis = redis.from_url(os.getenv("REDIS_URL"))
-        logger.info("Response Bot Service initialized")
+        
+        # Initialize Redis with graceful degradation
+        try:
+            redis_url = os.getenv("REDIS_URL")
+            if not redis_url:
+                raise ValueError("REDIS_URL not configured")
+            self.redis = redis.from_url(redis_url)
+            self.redis.ping()  # Test connection
+            self.redis_available = True
+            logger.info("Response Bot Service initialized with Redis")
+        except Exception as e:
+            logger.warning(f"Redis connection failed: {e}. AI analysis will be disabled.")
+            self.redis = None
+            self.redis_available = False
     
     def process_user_posts(self):
         """Process user posts from Redis queue with instant reaction."""
+        if not self.redis_available or not self.redis:
+            logger.error("Redis not available - Response Bot cannot process posts. Please configure REDIS_URL.")
+            return
+        
         logger.info("Response Bot listening for analysis jobs on Redis queue...")
         
         # Get macro context once (shared across jobs)
@@ -219,10 +235,36 @@ class ResponseBotService:
     def run(self):
         """Run the response bot service continuously."""
         logger.info("Response Bot Service started")
-        try:
-            self.process_user_posts()
-        except KeyboardInterrupt:
-            logger.info("Response Bot Service stopped by user")
-        except Exception as e:
-            logger.error(f"Response Bot Service error: {e}", exc_info=True)
+        
+        # If Redis not available, log warning and exit gracefully
+        if not self.redis_available:
+            logger.error("=" * 80)
+            logger.error("⚠️  RESPONSE BOT SERVICE DISABLED")
+            logger.error("Redis is not available. AI analysis will not work.")
+            logger.error("Please configure REDIS_URL environment variable.")
+            logger.error("=" * 80)
+            return
+        
+        while True:
+            try:
+                self.process_user_posts()
+            except KeyboardInterrupt:
+                logger.info("Response Bot Service stopped by user")
+                break
+            except Exception as e:
+                logger.error(f"Response Bot Service error: {e}", exc_info=True)
+                # Retry after 60 seconds
+                logger.info("Retrying in 60 seconds...")
+                time.sleep(60)
+                # Re-initialize Redis connection in case it was temporary
+                try:
+                    redis_url = os.getenv("REDIS_URL")
+                    if redis_url:
+                        self.redis = redis.from_url(redis_url)
+                        self.redis.ping()
+                        self.redis_available = True
+                        logger.info("Redis connection restored")
+                except Exception as redis_err:
+                    logger.warning(f"Redis reconnection failed: {redis_err}")
+                    self.redis_available = False
 

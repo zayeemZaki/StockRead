@@ -58,12 +58,16 @@ export function CreatePost({ trigger }: CreatePostProps) {
         setOpen(false);
         setTicker('');
         setContent('');
-        window.location.reload();
+        // Use router.refresh() instead of window.location.reload() for better UX
+        router.refresh();
       } else {
         toast.error(result.error || 'Failed to create post');
+        // Don't close dialog on error so user can retry
       }
     } catch (err: any) {
-      toast.error('Error posting: ' + err.message);
+      console.error('Post creation error:', err);
+      toast.error('Error posting: ' + (err.message || 'Unknown error'));
+      // Don't close dialog on error so user can retry
     } finally {
       setLoading(false);
     }
@@ -109,14 +113,14 @@ export function CreatePost({ trigger }: CreatePostProps) {
             </button>
           )}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[525px] w-[95%] rounded-xl">
+        <DialogContent className="sm:max-w-[525px] w-[95%] rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-primary">Drop a Signal</DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Share your market thesis with the community
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4 pb-4">
             <div>
               <TickerSearch onSelect={(symbol: string) => setTicker(symbol)} />
             </div>

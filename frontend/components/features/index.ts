@@ -11,3 +11,4 @@ export { UserListDialog } from './user-list-dialog';
 export { MarketSidebar } from './market-sidebar';
 export { StockChart } from './stock-chart';
 export { InteractiveChart } from './interactive-chart';
+export { ExpandableAbout } from './expandable-about';

@@ -143,7 +143,10 @@ export function PostCard({
     return 'bg-warning/90 text-warning-foreground border-warning';
   };
 
-  const hasFinancialData = post.price_history && post.price_history.length > 0 && post.raw_market_data;
+  // Always show financial data section if post has a ticker
+  // Data will show "N/A" if not available
+  const hasFinancialData = !!post.ticker;
+  const hasPriceHistory = post.price_history && Array.isArray(post.price_history) && post.price_history.length > 0;
   
   const getChartColor = () => {
     if (!post.price_history || post.price_history.length < 2) return 'hsl(var(--bullish))';
@@ -260,23 +263,25 @@ export function PostCard({
           <div className="bg-muted/30 border border-border rounded-lg p-3">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               
-              {/* Sparkline Chart */}
-              <div className="w-full sm:w-auto sm:flex-shrink-0 flex sm:block justify-between items-center border-b sm:border-b-0 border-border pb-2 sm:pb-0 mb-2 sm:mb-0">
-                <div className="text-xs text-muted-foreground font-medium sm:mb-1">7-Day Trend</div>
-                <ResponsiveContainer width={120} height={40}>
-                  <LineChart data={chartData}>
-                    <YAxis domain={['auto', 'auto']} hide />
-                    <Line 
-                      type="monotone" 
-                      dataKey="price" 
-                      stroke={getChartColor()} 
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {/* Sparkline Chart - Only show if price history exists */}
+              {hasPriceHistory && (
+                <div className="w-full sm:w-auto sm:flex-shrink-0 flex sm:block justify-between items-center border-b sm:border-b-0 border-border pb-2 sm:pb-0 mb-2 sm:mb-0">
+                  <div className="text-xs text-muted-foreground font-medium sm:mb-1">7-Day Trend</div>
+                  <ResponsiveContainer width={120} height={40}>
+                    <LineChart data={chartData}>
+                      <YAxis domain={['auto', 'auto']} hide />
+                      <Line 
+                        type="monotone" 
+                        dataKey="price" 
+                        stroke={getChartColor()} 
+                        strokeWidth={2}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
 
               {/* Data Grid: 2 Cols on Mobile, 4 Cols on Desktop */}
               <div className="flex-1 w-full grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-2">

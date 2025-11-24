@@ -52,8 +52,8 @@ export function Navbar() {
   // Helper to check if we should hide the top header
   const shouldHideTopHeader = () => {
     if (!pathname) return false;
-    // Hide on Market, Settings, and any Profile page
-    return pathname === '/markets' || pathname === '/settings' || pathname.startsWith('/profile');
+    // Hide on Market, Settings, Profile, and Ticker pages
+    return pathname === '/markets' || pathname === '/settings' || pathname.startsWith('/profile') || pathname.startsWith('/ticker');
   };
 
   useEffect(() => {

@@ -43,13 +43,23 @@ export async function createPostAction(ticker: string, content: string) {
       return { success: false, error: 'Failed to create post' };
     }
 
-    // Redis Push (The Trigger)
-    const redis = new Redis(process.env.REDIS_URL!);
-    await redis.lpush('analysis_jobs', JSON.stringify({
-      postId: data.id,
-      ticker: ticker.toUpperCase()
-    }));
-    await redis.quit();
+    // Redis Push (The Trigger) - Non-blocking: post succeeds even if Redis fails
+    try {
+      if (process.env.REDIS_URL) {
+        const redis = new Redis(process.env.REDIS_URL);
+        await redis.lpush('analysis_jobs', JSON.stringify({
+          postId: data.id,
+          ticker: ticker.toUpperCase()
+        }));
+        await redis.quit();
+      } else {
+        console.warn('REDIS_URL not configured - AI analysis will not be triggered');
+      }
+    } catch (redisError) {
+      // Log but don't fail the post creation
+      console.error('Redis error (non-blocking):', redisError);
+      // Post still succeeds, AI analysis will be triggered on next service run
+    }
 
     return { success: true, postId: data.id };
   } catch (error) {

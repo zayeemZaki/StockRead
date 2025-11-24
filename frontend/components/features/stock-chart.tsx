@@ -163,11 +163,11 @@ export function StockChart({ data, previousClose, range = '1Y' }: StockChartProp
   };
 
   return (
-    <div className="h-[300px] w-full">
+    <div className="h-[180px] md:h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}
-          margin={{ top: 10, right: 50, left: 35, bottom: 30 }}
+          margin={{ top: 5, right: 15, left: 5, bottom: 12 }}
         >
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
@@ -180,23 +180,24 @@ export function StockChart({ data, previousClose, range = '1Y' }: StockChartProp
             dataKey="date"
             tickFormatter={formatXAxis}
             stroke="#374151"
-            tick={{ fill: '#9ca3af', fontSize: 11 }}
+            tick={{ fill: '#9ca3af', fontSize: 9 }}
             axisLine={{ stroke: '#1f2937' }}
             tickLine={false}
             ticks={tickIndices.map(i => data[i].date)}
             angle={0}
             textAnchor="middle"
-            height={50}
+            height={30}
           />
           
           <YAxis
             orientation="right"
             domain={['auto', 'auto']}
             stroke="#374151"
-            tick={{ fill: '#9ca3af', fontSize: 12 }}
+            tick={{ fill: '#9ca3af', fontSize: 10 }}
             axisLine={{ stroke: '#1f2937' }}
             tickLine={false}
             tickFormatter={(value) => `$${value.toFixed(0)}`}
+            width={45}
           />
           
           <Tooltip 

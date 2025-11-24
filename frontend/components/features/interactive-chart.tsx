@@ -42,25 +42,25 @@ export function InteractiveChart({ ticker, initialData }: InteractiveChartProps)
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1.5 md:space-y-4">
       {/* Time Range Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-end gap-1.5">
+        <div className="text-[10px] md:text-sm text-muted-foreground flex-shrink-0">
           {isPending && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Loading chart data...</span>
+            <div className="flex items-center gap-1 md:gap-2">
+              <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
+              <span className="hidden md:inline">Loading...</span>
             </div>
           )}
         </div>
         
-        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+        <div className="flex items-center gap-0.5 md:gap-1 bg-muted/50 rounded-md p-0.5 md:p-1">
           {timeRanges.map((range) => (
             <button
               key={range}
               onClick={() => handleRangeChange(range)}
               disabled={isPending}
-              className={`px-3 py-1 rounded text-sm font-medium transition-all disabled:opacity-50 ${
+              className={`px-1 md:px-3 py-0.5 md:py-1 rounded text-[9px] md:text-sm font-medium transition-all disabled:opacity-50 ${
                 range === activeRange
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
