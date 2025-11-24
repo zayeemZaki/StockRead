@@ -245,7 +245,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
                     // Calculate initial props for the post card
                     const initialLikes = post.reactions?.length || 0;
-                    const initialUserHasLiked = viewer ? post.reactions?.some((r: Reaction) => r.user_id === viewer.id) : false;
+                    const initialUserHasLiked = !!(viewer && post.reactions?.some((r: Reaction) => r.user_id === viewer.id));
                     const initialCommentCount = post.comments?.length || 0;
 
                     return (
