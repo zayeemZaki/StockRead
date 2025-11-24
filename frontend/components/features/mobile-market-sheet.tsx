@@ -1,6 +1,6 @@
 'use client';
 
-import { LineChart } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -15,7 +15,7 @@ export function MobileMarketSheet() {
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
-          <LineChart className="h-5 w-5" />
+          <Menu className="h-5 w-5" />
           <span className="sr-only">Open market watch</span>
         </Button>
       </SheetTrigger>

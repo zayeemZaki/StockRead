@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Post } from '@/types';
 import { POPULAR_STOCKS } from '@/lib/tickers';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StockLogo } from '@/components/ui/stock-logo';
 import { PostActions } from './post-actions';
@@ -44,13 +44,6 @@ export function PostCard({
   const [isDeleted, setIsDeleted] = useState(false);
   const supabase = createClient();
   const stockInfo = POPULAR_STOCKS.find(s => s.symbol === post.ticker);
-  
-  // Debug logging
-  console.log(`PostCard for ${post.ticker}:`, { 
-    hasLiveInsight: !!liveInsight, 
-    liveInsight,
-    hasAiSummary: !!post.ai_summary
-  });
 
   const handleDeleteClick = () => {
     setShowDeleteDialog(true);
@@ -58,50 +51,20 @@ export function PostCard({
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
-    console.log('Starting delete for post:', post.id);
-
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user || user.id !== post.user_id) {
-        console.error('Unauthorized: User does not own this post');
         setIsDeleting(false);
         setShowDeleteDialog(false);
         return;
       }
 
-      console.log('Deleting post from database...');
+      await supabase.from('comments').delete().eq('post_id', post.id);
+      await supabase.from('reactions').delete().eq('post_id', post.id);
       
-      // First, delete related records (comments and reactions)
-      // Delete comments first
-      console.log('Deleting comments for post:', post.id);
-      const { data: deletedComments, error: commentsError } = await supabase
-        .from('comments')
-        .delete()
-        .eq('post_id', post.id);
-      
-      if (commentsError) {
-        console.error('Error deleting comments:', commentsError);
-      } else {
-        console.log('Comments deleted:', deletedComments);
-      }
-      
-      // Delete reactions
-      console.log('Deleting reactions for post:', post.id);
-      const { data: deletedReactions, error: reactionsError } = await supabase
-        .from('reactions')
-        .delete()
-        .eq('post_id', post.id);
-      
-      if (reactionsError) {
-        console.error('Error deleting reactions:', reactionsError);
-      } else {
-        console.log('Reactions deleted:', deletedReactions);
-      }
-      
-      // Now delete the post
-      console.log('Deleting post itself:', post.id);
-      const { data: deletedPost, error } = await supabase
+      const { error } = await supabase
         .from('posts')
         .delete()
         .eq('id', post.id)
@@ -114,35 +77,12 @@ export function PostCard({
         return;
       }
 
-      console.log('Post delete response:', deletedPost);
-      console.log('Post deleted successfully from database');
-      
-      // Verify the post is actually deleted
-      const { data: verifyPost, error: verifyError } = await supabase
-        .from('posts')
-        .select('id')
-        .eq('id', post.id)
-        .maybeSingle();
-      
-      if (verifyError) {
-        console.error('Error verifying deletion:', verifyError);
-      } else {
-        console.log('Verification - Post still exists?', verifyPost !== null, verifyPost);
-      }
-      
-      // Hide the card immediately
       setIsDeleted(true);
-      
-      // Close dialog
       setShowDeleteDialog(false);
       setIsDeleting(false);
       
-      // Then notify parent to remove from UI
-      console.log('Calling onDelete callback, onDelete exists?', !!onDelete);
       if (onDelete) {
         onDelete();
-      } else {
-        console.warn('No onDelete callback provided!');
       }
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -153,7 +93,6 @@ export function PostCard({
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Get current user on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUser(user);
@@ -162,7 +101,6 @@ export function PostCard({
 
   const isOwner = currentUser && currentUser.id === post.user_id;
 
-  // Helper to get initials for avatar fallback
   const getInitials = (username: string) => {
     return username
       .split(' ')
@@ -172,19 +110,11 @@ export function PostCard({
       .slice(0, 2);
   };
 
-  // Helper to slugify username for URL
   const slugifyUsername = (username: string) => {
     return username
       .toLowerCase()
       .replace(/\s+/g, '')
       .replace(/[^a-z0-9]/g, '');
-  };
-
-  // Determine badge colors for user sentiment
-  const getUserBadgeVariant = (sentiment: string) => {
-    if (sentiment === 'Bullish') return 'default';
-    if (sentiment === 'Bearish') return 'destructive';
-    return 'secondary';
   };
 
   const getUserBadgeColor = (sentiment: string) => {
@@ -193,7 +123,6 @@ export function PostCard({
     return 'bg-muted hover:bg-muted/80 text-muted-foreground';
   };
 
-  // Determine badge colors for AI score
   const getAIScoreBadge = (score: number) => {
     if (score >= 70) return 'bg-bullish text-bullish-foreground';
     if (score >= 50) return 'bg-brand text-brand-foreground';
@@ -214,14 +143,13 @@ export function PostCard({
     return 'bg-warning/90 text-warning-foreground border-warning';
   };
 
-  // Financial data helpers
   const hasFinancialData = post.price_history && post.price_history.length > 0 && post.raw_market_data;
   
   const getChartColor = () => {
-    if (!post.price_history || post.price_history.length < 2) return '#10b981'; // green default
+    if (!post.price_history || post.price_history.length < 2) return 'hsl(var(--bullish))';
     const first = post.price_history[0];
     const last = post.price_history[post.price_history.length - 1];
-    return last >= first ? '#10b981' : '#ef4444'; // green if up, red if down
+    return last >= first ? 'hsl(var(--bullish))' : 'hsl(var(--bearish))';
   };
 
   const chartData = post.price_history?.map((price, index) => ({
@@ -235,74 +163,74 @@ export function PostCard({
     return value.toString();
   };
 
-  // Don't render if deleted
   if (isDeleted) {
     return null;
   }
 
   return (
-    <Card className="bg-card border-border shadow-xl overflow-hidden">{/* ZONE 1: USER SIGNAL - Header + Content */}
-      {/* ZONE 1: USER SIGNAL - Header + Content */}
-      <CardHeader className="pb-3">
-        {/* User Identity + Ticker */}
+    <Card className="bg-card border-border shadow-sm overflow-hidden p-3 sm:p-4 mb-4 last:mb-0">
+      
+      {/* ZONE 1: HEADER - Single Row Layout for Mobile */}
+      <div className="pb-3">
+        {/* Main Row: User Info (Left) --- Ticker Info (Right) */}
         <div className="flex items-start justify-between mb-3">
-          {/* Left: User Info with inline metadata */}
+          
+          {/* Left: Avatar + Name + Sentiment */}
           <Link 
             href={`/profile/${slugifyUsername(post.profiles?.username || '')}`}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity max-w-[65%]"
           >
-            <Avatar className="w-10 h-10 border-2 border-border">
+            <Avatar className="w-10 h-10 border-2 border-border flex-shrink-0">
               <AvatarImage src={post.profiles?.avatar_url} alt={post.profiles?.username} />
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                 {getInitials(post.profiles?.username || 'U')}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col">
-              <span className="font-semibold text-foreground hover:underline mb-1">
-                {post.profiles?.username || 'Unknown'}
-              </span>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">
-                  {new Date(post.created_at).toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric'
-                  })}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-foreground hover:underline truncate">
+                  {post.profiles?.username || 'Unknown'}
                 </span>
-                {/* User Thesis Badge - Next to timestamp */}
+                
+                {/* User Sentiment - Next to Name */}
                 {post.user_sentiment_label && (
-                  <>
-                    <span className="text-muted-foreground text-xs">|</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`${getUserBadgeColor(post.user_sentiment_label)} text-xs h-5 px-2`}
-                    >
-                      {post.user_sentiment_label}
-                    </Badge>
-                  </>
+                  <Badge 
+                    variant="outline" 
+                    className={`${getUserBadgeColor(post.user_sentiment_label)} text-[10px] h-5 px-1.5 flex-shrink-0`}
+                  >
+                    {post.user_sentiment_label}
+                  </Badge>
                 )}
               </div>
+              <span className="text-xs text-muted-foreground truncate">
+                {new Date(post.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric'
+                })}
+              </span>
             </div>
           </Link>
 
-          {/* Right: Ticker + Logo + Delete Button */}
-          <div className="flex items-center gap-3">
+          {/* Right: Ticker + Logo + Menu */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Link 
               href={`/ticker/${post.ticker}`}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
+              {/* REVERTED: Standard Logo component without extra wrapper or background */}
               <StockLogo ticker={post.ticker} domain={stockInfo?.domain} size="md" />
-              <span className="text-2xl font-bold text-primary">{post.ticker}</span>
+              <span className="text-sm font-bold text-primary">{post.ticker}</span>
             </Link>
             
             {isOwner && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button 
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                     disabled={isDeleting}
                   >
-                    <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                    <MoreVertical className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -320,21 +248,22 @@ export function PostCard({
           </div>
         </div>
 
-        {/* User's Post Content - MOST PROMINENT ELEMENT */}
-        <p className="text-lg text-foreground leading-relaxed whitespace-pre-line">
+        {/* User's Post Content */}
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
           {post.content}
         </p>
-      </CardHeader>
+      </div>
 
       {/* ZONE 2: MARKET CONTEXT - Financial Data */}
       {hasFinancialData && (
-        <CardContent className="pb-4">
+        <div className="pb-4">
           <div className="bg-muted/30 border border-border rounded-lg p-3">
-            <div className="flex items-start gap-4">
-              {/* Left: Sparkline Chart */}
-              <div className="flex-shrink-0">
-                <div className="text-xs text-muted-foreground mb-1 font-medium">7-Day Trend</div>
-                <ResponsiveContainer width={120} height={50}>
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              
+              {/* Sparkline Chart */}
+              <div className="w-full sm:w-auto sm:flex-shrink-0 flex sm:block justify-between items-center border-b sm:border-b-0 border-border pb-2 sm:pb-0 mb-2 sm:mb-0">
+                <div className="text-xs text-muted-foreground font-medium sm:mb-1">7-Day Trend</div>
+                <ResponsiveContainer width={120} height={40}>
                   <LineChart data={chartData}>
                     <YAxis domain={['auto', 'auto']} hide />
                     <Line 
@@ -349,14 +278,13 @@ export function PostCard({
                 </ResponsiveContainer>
               </div>
 
-              {/* Right: Responsive Data Grid (2 cols mobile, 4 cols desktop) */}
-              <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-4">
-                {/* ROW 1: VALUATION METRICS */}
+              {/* Data Grid: 2 Cols on Mobile, 4 Cols on Desktop */}
+              <div className="flex-1 w-full grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-2">
                 
                 {/* Market Cap */}
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mkt Cap</div>
-                  <div className="text-sm font-mono font-medium text-foreground">
+                  <div className="text-xs sm:text-sm font-mono font-medium text-foreground truncate">
                     {formatMetricValue(post.raw_market_data?.market_cap)}
                   </div>
                 </div>
@@ -364,7 +292,7 @@ export function PostCard({
                 {/* P/E Ratio */}
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">P/E Ratio</div>
-                  <div className="text-sm font-mono font-medium text-foreground">
+                  <div className="text-xs sm:text-sm font-mono font-medium text-foreground">
                     {formatMetricValue(post.raw_market_data?.pe_ratio)}
                   </div>
                 </div>
@@ -372,7 +300,7 @@ export function PostCard({
                 {/* Beta */}
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Beta</div>
-                  <div className="text-sm font-mono font-medium text-foreground">
+                  <div className="text-xs sm:text-sm font-mono font-medium text-foreground">
                     {formatMetricValue(post.raw_market_data?.beta)}
                   </div>
                 </div>
@@ -380,18 +308,16 @@ export function PostCard({
                 {/* 52-Week High */}
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">52W High</div>
-                  <div className="text-sm font-mono font-medium text-foreground">
+                  <div className="text-xs sm:text-sm font-mono font-medium text-foreground">
                     ${formatMetricValue(post.raw_market_data?.fiftyTwoWeekHigh)}
                   </div>
                 </div>
 
-                {/* ROW 2: SENTIMENT & GOD MODE METRICS */}
-
                 {/* Analyst Target */}
                 {post.target_price !== null && post.target_price !== undefined && post.raw_market_data?.price ? (
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Analyst Target</div>
-                    <div className={`text-sm font-mono font-semibold ${
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
+                    <div className={`text-xs sm:text-sm font-mono font-semibold ${
                       post.target_price > post.raw_market_data.price 
                         ? 'text-bullish' 
                         : 'text-bearish'
@@ -401,118 +327,98 @@ export function PostCard({
                   </div>
                 ) : (
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Analyst Target</div>
-                    <div className="text-sm font-mono font-medium text-muted-foreground">
-                      -
-                    </div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
+                    <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
                   </div>
                 )}
 
                 {/* Consensus Rating */}
-                {post.analyst_rating ? (
-                  <div>
+                <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Consensus</div>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs font-semibold mt-0.5 ${
-                        post.analyst_rating.toLowerCase().includes('buy') 
-                          ? 'bg-bullish/10 text-bullish border-bullish/30' 
-                          : post.analyst_rating.toLowerCase().includes('sell')
-                          ? 'bg-bearish/10 text-bearish border-bearish/30'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {post.analyst_rating}
-                    </Badge>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Consensus</div>
-                    <div className="text-sm font-mono font-medium text-muted-foreground">
-                      -
-                    </div>
-                  </div>
-                )}
+                    {post.analyst_rating ? (
+                      <Badge 
+                        variant="outline" 
+                        className={`text-[10px] px-1.5 py-0 h-5 font-semibold mt-0.5 ${
+                          post.analyst_rating.toLowerCase().includes('buy') 
+                            ? 'bg-bullish/10 text-bullish border-bullish/30' 
+                            : post.analyst_rating.toLowerCase().includes('sell')
+                            ? 'bg-bearish/10 text-bearish border-bearish/30'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {post.analyst_rating}
+                      </Badge>
+                    ) : (
+                      <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
+                    )}
+                </div>
 
                 {/* Short Interest */}
-                {post.short_float !== null && post.short_float !== undefined ? (
-                  <div>
+                <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Short</div>
-                    <div className={`text-sm font-mono font-medium flex items-center gap-1 ${
-                      post.short_float > 0.20 ? 'text-warning' : 'text-foreground'
-                    }`}>
-                      {(post.short_float * 100).toFixed(1)}%
-                      {post.short_float > 0.20 && <span className="text-base">🔥</span>}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Short</div>
-                    <div className="text-sm font-mono font-medium text-muted-foreground">
-                      -
-                    </div>
-                  </div>
-                )}
+                    {post.short_float !== null && post.short_float !== undefined ? (
+                      <div className={`text-xs sm:text-sm font-mono font-medium flex items-center gap-1 ${
+                        post.short_float > 0.20 ? 'text-warning' : 'text-foreground'
+                      }`}>
+                        {(post.short_float * 100).toFixed(1)}%
+                        {post.short_float > 0.20 && <span className="text-xs">🔥</span>}
+                      </div>
+                    ) : (
+                      <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
+                    )}
+                </div>
 
                 {/* Insider Holdings */}
-                {post.insider_held !== null && post.insider_held !== undefined ? (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Insiders</div>
-                    <div className="text-sm font-mono font-medium text-foreground">
-                      {(post.insider_held * 100).toFixed(1)}%
-                    </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Insiders</div>
+                  <div className="text-xs sm:text-sm font-mono font-medium text-foreground">
+                    {post.insider_held !== null && post.insider_held !== undefined 
+                      ? `${(post.insider_held * 100).toFixed(1)}%`
+                      : '-'
+                    }
                   </div>
-                ) : (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Insiders</div>
-                    <div className="text-sm font-mono font-medium text-muted-foreground">
-                      -
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
-        </CardContent>
+        </div>
       )}
 
-      {/* ZONE 3: MARKET REALITY CHECK - Analysis Summary */}
+      {/* ZONE 3: MARKET REALITY CHECK */}
       {post.ai_summary && (
-        <CardFooter className="bg-muted/40 border-t border-border flex-col items-start gap-3 py-4">
-          {/* Market Reality Check Header with Scores */}
-          <div className="w-full flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-primary" />
-              <span className="text-sm font-semibold text-primary uppercase tracking-wide">Market Reality Check</span>
+        <div className="bg-muted/40 border-t border-border flex flex-col gap-3 py-3">
+          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            
+            <div className="flex items-center gap-2 mb-1 sm:mb-0">
+              <Bot className="w-4 h-4 text-primary" />
+              <span className="text-xs sm:text-sm font-semibold text-primary uppercase tracking-wide">
+                Market Reality Check
+              </span>
             </div>
             
-            <div className="flex items-center gap-3">
-              {/* Market Score - Live data only */}
+            <div className="flex flex-wrap items-center gap-2">
               {liveInsight?.ai_score && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-medium">Market Score:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase">Score:</span>
                   <Badge 
-                    className={`${getAIScoreBadge(liveInsight.ai_score)} font-bold`}
-                    title="Score is based on weighted P/E, VIX, and Analyst Consensus."
+                    className={`${getAIScoreBadge(liveInsight.ai_score)} text-[10px] px-1.5 h-5 font-bold`}
                   >
                     {liveInsight.ai_score}/100
                   </Badge>
-                  
-                  {/* Signal Badge */}
-                  {liveInsight.ai_signal && (
-                    <Badge className={`${getSignalBadge(liveInsight.ai_signal)} font-bold uppercase text-xs`}>
-                      {liveInsight.ai_signal}
-                    </Badge>
-                  )}
                 </div>
               )}
               
-              {/* Risk Level - Live data only */}
+              {liveInsight?.ai_signal && (
+                <Badge className={`${getSignalBadge(liveInsight.ai_signal)} text-[10px] px-1.5 h-5 font-bold uppercase`}>
+                  {liveInsight.ai_signal}
+                </Badge>
+              )}
+              
               {liveInsight?.ai_risk && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-medium">|</span>
-                  <span className="text-xs text-muted-foreground font-medium">Risk Level:</span>
-                  <Badge variant="outline" className={getRiskBadge(liveInsight.ai_risk)}>
+                <div className="flex items-center gap-1.5 ml-1">
+                  <span className="text-muted-foreground text-[10px] hidden sm:inline">|</span>
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase">Risk:</span>
+                  <Badge variant="outline" className={`${getRiskBadge(liveInsight.ai_risk)} text-[10px] px-1.5 h-5`}>
                     {liveInsight.ai_risk}
                   </Badge>
                 </div>
@@ -520,19 +426,18 @@ export function PostCard({
             </div>
           </div>
 
-          {/* AI Summary Text */}
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line pl-0.5">
             {post.ai_summary.replace(/🤖 AI (FACT CHECK|Context Check):/gi, "").trim()}
           </p>
-        </CardFooter>
+        </div>
       )}
 
-      {/* ACTIONS: Like/Comment Buttons */}
-      <div className="border-t border-border">
+      {/* ACTIONS */}
+      <div className="border-t border-border pt-2">
         <PostActions 
           postId={post.id} 
           initialLikes={initialLikes} 
-          initialUserHasLiked={initialUserHasLiked}
+          initialUserHasLiked={initialUserHasLiked} 
           initialCommentCount={initialCommentCount}
           defaultShowComments={defaultShowComments}
         />

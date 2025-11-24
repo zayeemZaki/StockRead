@@ -182,7 +182,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
                 </div>
 
                 {/* Comment Body */}
-                <p className="text-sm text-gray-300 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
                   {comment.content}
                 </p>
               </div>

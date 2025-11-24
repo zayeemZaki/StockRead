@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
+import { toast } from 'sonner';
 
 // Initialize Supabase Browser Client
 const supabase = createBrowserClient();
@@ -32,7 +33,7 @@ export default function LoginPage() {
           },
         });
         if (error) throw error;
-        alert('Account created! You can now log in.');
+        toast.success('Account created successfully! You can now log in.');
         setIsSignUp(false);
       } else {
         // LOGIN LOGIC
@@ -41,18 +42,19 @@ export default function LoginPage() {
           password,
         });
         if (error) throw error;
+        toast.success('Welcome back! Redirecting...');
         router.push('/'); // Redirect to Home on success
       }
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message || 'An error occurred during authentication');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
-      <div className="w-full max-w-md bg-card p-8 rounded-2xl border border-border shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4 sm:p-6">
+      <div className="w-full max-w-md bg-card p-6 sm:p-8 rounded-2xl border border-border shadow-2xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary">Stock Read</h1>
           <p className="text-muted-foreground mt-2">{isSignUp ? 'Create your account' : 'Welcome back, Insider'}</p>

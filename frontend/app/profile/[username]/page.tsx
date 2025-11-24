@@ -159,8 +159,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background text-foreground pt-24 pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
+      <main className="min-h-screen bg-background text-foreground pt-0 md:pt-16 pb-8 px-2 sm:px-4 lg:px-8">
+        <div className="max-w-4xl mx-auto pt-6 md:pt-0">
           {/* Header Section */}
           <ProfileHeader
             profile={{
@@ -181,21 +181,21 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           />
 
           {/* Tabs Section */}
-          <Tabs defaultValue="signals" className="w-full mt-4">
-            <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 bg-card border border-border">
-              <TabsTrigger value="signals" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <Tabs defaultValue="signals" className="w-full mt-3 md:mt-4">
+            <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 bg-card border border-border h-8 md:h-10">
+              <TabsTrigger value="signals" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs md:text-sm">
                 {isOwner ? 'My Signals' : 'Signals'}
               </TabsTrigger>
-              <TabsTrigger value="liked" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TabsTrigger value="liked" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs md:text-sm">
                 Likes
               </TabsTrigger>
-              <TabsTrigger value="comments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TabsTrigger value="comments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs md:text-sm">
                 {isOwner ? 'My Comments' : 'Comments'}
               </TabsTrigger>
             </TabsList>
 
             {/* My Signals Tab */}
-            <TabsContent value="signals" className="mt-4">
+            <TabsContent value="signals" className="mt-3 md:mt-4">
               <ProfilePostsManager 
                 initialPosts={userPosts || []}
                 viewerId={viewer?.id || null}
@@ -205,7 +205,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             </TabsContent>
 
             {/* Liked Posts Tab */}
-            <TabsContent value="liked" className="mt-4">
+            <TabsContent value="liked" className="mt-3 md:mt-4">
               <ProfilePostsManager 
                 initialPosts={likedPosts || []}
                 viewerId={viewer?.id || null}
@@ -215,7 +215,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             </TabsContent>
 
             {/* My Comments Tab */}
-            <TabsContent value="comments" className="mt-4">
+            <TabsContent value="comments" className="mt-3 md:mt-4">
               <div className="space-y-6">
                 {userComments && userComments.length > 0 ? (
                   userComments.map((comment: any) => {

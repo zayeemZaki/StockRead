@@ -27,7 +27,6 @@ function CustomTooltip({ active, payload, range }: any) {
   
   // Validate date
   if (isNaN(date.getTime())) {
-    console.error('Invalid date:', dateStr);
     return null;
   }
   
@@ -73,12 +72,12 @@ function CustomTooltip({ active, payload, range }: any) {
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-xs text-gray-400 mb-1">
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground mb-1">
         {formattedDate}
         {formattedTime && <span className="block mt-0.5">{formattedTime}</span>}
       </p>
-      <p className="text-sm font-semibold text-white">${price?.toFixed(2)}</p>
+      <p className="text-sm font-semibold text-foreground">${price?.toFixed(2)}</p>
     </div>
   );
 }
@@ -164,7 +163,7 @@ export function StockChart({ data, previousClose, range = '1Y' }: StockChartProp
   };
 
   return (
-    <div className="h-[400px] w-full">
+    <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}

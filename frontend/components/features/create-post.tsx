@@ -17,7 +17,12 @@ import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { TickerSearch } from './ticker-search';
 
-export function CreatePost() {
+// Add interface for props
+interface CreatePostProps {
+  trigger?: React.ReactNode;
+}
+
+export function CreatePost({ trigger }: CreatePostProps) {
   const [open, setOpen] = useState(false);
   const [ticker, setTicker] = useState('');
   const [content, setContent] = useState('');
@@ -64,6 +69,16 @@ export function CreatePost() {
     }
   };
 
+  const handleAuthCheck = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast.error('Please log in to post!');
+      router.push('/login');
+    }
+    // If user exists, DialogTrigger handles the open state automatically
+  };
+
   const handleFakeInputClick = () => {
     if (!user) {
       toast.error('Please log in to post!');
@@ -74,18 +89,27 @@ export function CreatePost() {
   };
 
   return (
-    <div className="mb-8">
+    // Only add bottom margin if we are using the default view (not the navbar trigger)
+    <div className={trigger ? "" : "mb-8"}>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <button
-            onClick={handleFakeInputClick}
-            className="w-full bg-muted border border-border rounded-full px-4 py-3 text-muted-foreground cursor-pointer hover:bg-muted/80 transition flex items-center gap-3"
-          >
-            <Pencil className="w-5 h-5" />
-            <span>Drop a signal...</span>
-          </button>
+          {trigger ? (
+            // If a custom trigger is provided (e.g., Pencil Icon in Navbar), use it
+            <span onClick={handleAuthCheck} className="cursor-pointer">
+              {trigger}
+            </span>
+          ) : (
+            // Default view: "Drop a signal..." fake input
+            <button
+              onClick={handleFakeInputClick}
+              className="w-full bg-muted border border-border rounded-full px-4 py-3 text-muted-foreground cursor-pointer hover:bg-muted/80 transition flex items-center gap-3"
+            >
+              <Pencil className="w-5 h-5" />
+              <span>Drop a signal...</span>
+            </button>
+          )}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[525px] w-[95%] rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-primary">Drop a Signal</DialogTitle>
             <DialogDescription className="text-muted-foreground">

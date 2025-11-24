@@ -173,27 +173,41 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
 
   return (
     <div className="space-y-6">
-      {/* Filter Pills */}
-      <div className="flex flex-wrap gap-2 p-4 bg-card rounded-xl border border-border">
+      {/* Filter Pills Container */}
+      {/* - flex-nowrap: Forces single row
+         - overflow-x-auto: Enables horizontal scrolling
+         - whitespace-nowrap: Prevents content inside from wrapping 
+      */}
+      <div className="flex flex-nowrap overflow-x-auto whitespace-nowrap gap-2 p-4 bg-card rounded-xl border border-border">
         {filterButtons.map((filter) => (
           <button
             key={filter.id}
             onClick={() => setActiveFilter(filter.id)}
             className={`
-              px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2
+              /* Default/Desktop Styles */
+              md:px-4 md:py-2 md:text-sm 
+              
+              /* Mobile Styles */
+              px-3 py-1 text-xs 
+              
+              /* Structural Styles */
+              flex-shrink-0 /* Prevents button from squishing in scroll view */
+              flex-grow-0 
+              rounded-full font-medium transition-all flex items-center gap-2
+              
               ${activeFilter === filter.id
                 ? 'bg-primary text-primary-foreground shadow-lg'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }
             `}
           >
-            {filter.icon}
+            {/* Conditional Icon: Hidden on mobile (hidden), Visible on desktop (md:flex) */}
+            <span className="hidden md:flex items-center">
+              {filter.icon}
+            </span>
+            
             <span>{filter.label}</span>
-            {activeFilter === filter.id && (
-              <span className="ml-1 px-2 py-0.5 bg-primary-foreground/20 rounded-full text-xs">
-                {filteredPosts.length}
-              </span>
-            )}
+            {/* Number badge removed completely as requested */}
           </button>
         ))}
       </div>

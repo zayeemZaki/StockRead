@@ -110,7 +110,7 @@ export default async function TickerPage({ params }: TickerPageProps) {
                     })()}
                     
                     <div>
-                      <h1 className="text-3xl font-bold">{upperSymbol}</h1>
+                      <h1 className="text-2xl font-bold">{upperSymbol}</h1>
                       <p className="text-lg text-muted-foreground mt-1">
                         {profile.longName}
                       </p>
@@ -119,7 +119,7 @@ export default async function TickerPage({ params }: TickerPageProps) {
 
                   {/* Price Section */}
                   <div className="text-center space-y-3 py-6 border-y border-border">
-                    <div className="text-5xl font-bold">
+                    <div className="text-3xl font-bold">
                       ${profile.currentPrice?.toFixed(2) || 'N/A'}
                     </div>
                     <div className={`text-xl font-semibold flex items-center justify-center gap-2 ${priceChangeColor}`}>

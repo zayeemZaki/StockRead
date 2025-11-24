@@ -120,17 +120,19 @@ class AIService:
         ═══════════════════════════════════════════════════════════════════════════
         
         Weight the evidence as follows:
-        - Fundamentals: 25% (P/E ratio, market cap, institutional data)
-        - Technicals: 25% (trend, RSI)
-        - News: 30% (sentiment from headlines)
-        - Institutional: 20% (analyst target vs price, short float, insider ownership)
+        - Fundamentals: 20% (P/E ratio, market cap, institutional data)
+        - Technicals: 25% (trend, RSI, momentum factors)
+        - News: 25% (sentiment from headlines)
+        - Institutional/Consensus: 30% (analyst target vs price, short float, insider ownership, Wall Street consensus)
         
         Apply these OBJECTIVE RULES:
-        1. VIX RULE: If VIX > 30 (Extreme Fear), reduce bullish scores by 10-15 points
+        1. THE 'MAGNIFICENT 7' RULE: For market leaders (NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA), do NOT penalize a P/E ratio under 50 if the PEG ratio is reasonable (< 2.5) or Analyst Consensus is Buy/Strong Buy.
+        2. VIX RULE: If VIX > 30 (Extreme Fear), reduce bullish scores by 10-15 points
            (Exception: Defensive sectors like utilities, healthcare get immunity)
-        2. VALUATION RULE: If price is 20%+ below analyst target, add 5-10 bullish points
-        3. SHORT SQUEEZE RULE: If short float > 20%, flag potential volatility
-        4. INSIDER CONFIDENCE RULE: If insider ownership > 15%, add 5 bullish points
+        3. VALUATION RULE: If price is 20%+ below analyst target, add 5-10 bullish points
+        4. SHORT SQUEEZE RULE: If short float > 20%, flag potential volatility
+        5. INSIDER CONFIDENCE RULE: If insider ownership > 15%, add 5 bullish points
+        6. MOMENTUM FACTOR: If the stock is within 5% of its 52-Week High, treat this as a Bullish Momentum signal, not an Overbought signal, unless RSI is > 80.
         
         Calculate your OBJECTIVE Market Score (0-100) based ONLY on the evidence above.
         

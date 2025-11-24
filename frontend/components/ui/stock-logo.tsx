@@ -22,7 +22,7 @@ export function StockLogo({ ticker, domain, size = 'xl' }: StockLogoProps) {
     <img
       src={logoUrl}
       alt={`${ticker} logo`}
-      className={`${sizeClasses[size]} rounded-2xl bg-white p-3 shadow-xl flex-shrink-0`}
+      className={`${sizeClasses[size]} rounded-2xl bg-white p-1 shadow-xl flex-shrink-0`}
       onError={(e) => {
         e.currentTarget.style.display = 'none';
       }}

@@ -73,7 +73,7 @@ export function GlobalSearch() {
         });
 
         if (rpcError) {
-          console.error('❌ RPC Error:', rpcError);
+          // RPC error - silently continue with local results only
         }
 
         // STEP 3: SAFE PARSING - Default null to empty arrays
@@ -141,7 +141,7 @@ export function GlobalSearch() {
 
         setResults(finalResults);
       } catch (error) {
-        console.error('💥 Search Exception:', error);
+        // Search error - reset results
         setResults({ stocks: [], users: [], posts: [] });
       } finally {
         setIsLoading(false);
@@ -211,7 +211,7 @@ export function GlobalSearch() {
 
         {isLoading && (
           <div className="py-6 text-center text-sm">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
             Searching...
           </div>
         )}
@@ -226,12 +226,12 @@ export function GlobalSearch() {
                   key={stock.ticker}
                   onSelect={() => handleSelect('stock', stock)}
                 >
-                  <TrendingUp className="w-5 h-5 text-green-400 mr-2" />
+                  <TrendingUp className="w-5 h-5 text-bullish mr-2" />
                   {logoUrl && (
                     <img
                       src={logoUrl}
                       alt={stock.ticker}
-                      className="w-6 h-6 rounded bg-white p-0.5 mr-2"
+                      className="w-6 h-6 rounded bg-card p-0.5 mr-2"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
@@ -241,7 +241,7 @@ export function GlobalSearch() {
                     <p className="font-semibold">{stock.ticker}</p>
                     {stock.name && <p className="text-xs text-muted-foreground">{stock.name}</p>}
                     {stock.count > 0 && (
-                      <p className="text-xs text-green-500">{stock.count} post{stock.count !== 1 ? 's' : ''}</p>
+                      <p className="text-xs text-bullish">{stock.count} post{stock.count !== 1 ? 's' : ''}</p>
                     )}
                   </div>
                 </CommandItem>
@@ -258,15 +258,15 @@ export function GlobalSearch() {
                 key={user.id}
                 onSelect={() => handleSelect('user', user)}
               >
-                <User className="w-5 h-5 text-blue-400 mr-2" />
+                <User className="w-5 h-5 text-primary mr-2" />
                 <Avatar className="w-6 h-6 mr-2">
                   <AvatarImage src={user.avatar_url} alt={user.username} />
-                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {getInitials(user.username)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-semibold">@{user.username}</p>
+                  <p className="font-semibold">{user.username}</p>
                 </div>
               </CommandItem>
             ))}
@@ -283,19 +283,19 @@ export function GlobalSearch() {
                   key={post.id}
                   onSelect={() => handleSelect('post', post)}
                 >
-                  <FileText className="w-5 h-5 text-purple-400 mr-2 mt-0.5" />
+                  <FileText className="w-5 h-5 text-accent-foreground mr-2 mt-0.5" />
                   {logoUrl && (
                     <img
                       src={logoUrl}
                       alt={post.ticker}
-                      className="w-6 h-6 rounded bg-white p-0.5 mr-2 mt-0.5"
+                      className="w-6 h-6 rounded bg-card p-0.5 mr-2 mt-0.5"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-blue-400 mb-1">{post.ticker}</p>
+                    <p className="font-semibold text-primary mb-1">{post.ticker}</p>
                     <p className="text-sm line-clamp-2">
                       {truncateText(post.content)}
                     </p>
