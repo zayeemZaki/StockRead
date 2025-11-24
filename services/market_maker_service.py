@@ -235,7 +235,7 @@ class MarketMakerService:
                     ]
                     
                     self.supabase.table('market_ticks').insert(tick_data).execute()
-                    logger.info(f"📊 Logged {len(tick_data)} ticks to time-series")
+                    logger.debug(f"Logged time-series data: ticker={ticker}, count={len(tick_data)}")
                     
                 except Exception as tick_error:
                     logger.warning(f"Time-series logging failed: {tick_error}")
@@ -264,19 +264,78 @@ class MarketMakerService:
         unchanged = sum(1 for s in stock_data if s['change_percent'] == 0)
         
         logger.info(f"Market update complete: {len(stock_data)} stocks, {gainers} gainers, {losers} losers, {saved_count} saved")
+        
+        # Log health metrics
+        error_count = len(stock_data) - saved_count
+        self._log_health_metrics(len(stock_data), saved_count, error_count)
 
+    def _log_health_metrics(self, stocks_processed: int, success_count: int, error_count: int):
+        """Log health metrics for monitoring."""
+        success_rate = round((success_count / stocks_processed * 100) if stocks_processed > 0 else 0, 1)
+        logger.info(
+            "Market Maker health metrics",
+            extra={
+                'stocks_processed': stocks_processed,
+                'success_count': success_count,
+                'error_count': error_count,
+                'success_rate': success_rate
+            }
+        )
+    
+    def _update_health_status(self, status: str, error: str = None):
+        """Update health status in database for monitoring."""
+        try:
+            # Try to write to a health_status table if it exists
+            # This allows external monitoring systems to track service health
+            health_data = {
+                'service_name': 'MarketMaker',
+                'status': status,
+                'last_update': datetime.now(timezone.utc).isoformat(),
+                'error': error[:200] if error else None
+            }
+            # Note: This requires a health_status table in Supabase
+            # For now, we'll just log it
+            logger.debug(f"Health status: {health_data}")
+        except Exception as e:
+            logger.warning(f"Failed to update health status: {e}")
+    
     def run(self):
         """Main loop - continuously fetch and update S&P 500 prices."""
         logger.info(f"Market Maker started - tracking {len(self.tickers)} stocks, update interval: 5 minutes")
+        self._update_health_status('running')
+        
+        consecutive_errors = 0
+        max_consecutive_errors = 5
         
         try:
             while True:
-                self.update_market()
-                time.sleep(300)
+                try:
+                    self.update_market()
+                    consecutive_errors = 0
+                    self._update_health_status('running')
+                    time.sleep(300)
+                except Exception as update_error:
+                    consecutive_errors += 1
+                    error_msg = str(update_error)
+                    logger.error(f"Market update error (attempt {consecutive_errors}): {error_msg[:200]}")
+                    self._update_health_status('error', error_msg)
+                    
+                    if consecutive_errors >= max_consecutive_errors:
+                        logger.critical(
+                            f"Market Maker: {max_consecutive_errors} consecutive errors. "
+                            f"Service may be unhealthy. Last error: {error_msg[:200]}"
+                        )
+                        # Wait longer before retry
+                        time.sleep(600)  # 10 minutes
+                        consecutive_errors = 0  # Reset after long wait
+                    else:
+                        time.sleep(60)  # Wait 1 minute before retry
         
         except KeyboardInterrupt:
             logger.info("Market Maker stopped by user")
+            self._update_health_status('stopped')
         
         except Exception as e:
             logger.error(f"Fatal error: {e}", exc_info=True)
+            self._update_health_status('fatal_error', str(e))
 

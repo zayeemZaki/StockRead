@@ -136,7 +136,7 @@ class ResponseBotService:
                 }
                 try:
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
-                    logger.info(f"✅ Saved market data for post #{post_id} (AI analysis skipped)")
+                    logger.info(f"Saved market data: post_id={post_id}, ai_analysis=skipped")
                     return True
                 except Exception as db_error:
                     logger.error(f"Database update failed: {db_error}")
@@ -157,7 +157,7 @@ class ResponseBotService:
                     "ai_score": int(round(insight['sentiment_score'])),
                     "ai_risk": insight['risk_level'],
                     "user_sentiment_label": insight.get('user_thesis', 'Neutral'),
-                    "ai_summary": f"🤖 AI FACT CHECK:\n{insight['summary']}",
+                    "ai_summary": f"AI Analysis:\n{insight['summary']}",
                     "raw_market_data": market_data,
                     "analyst_rating": market_data.get('recommendationKey'),
                     "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
@@ -167,7 +167,7 @@ class ResponseBotService:
                 
                 try:
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
-                    logger.info(f"✅ Graded post #{post_id} for {ticker}")
+                    logger.info(f"Post analysis complete: post_id={post_id}, ticker={ticker}")
                     
                     # Update ticker_insights
                     self._update_ticker_insights(ticker, insight, market_data, macro_context)
@@ -246,8 +246,23 @@ class ResponseBotService:
             logger.error(f"Failed to update ticker_insights for {ticker}: {insight_error}")
 
     def process_unprocessed_posts_from_db(self):
-        """Fallback: Process posts directly from database that don't have AI data yet."""
+        """
+        Fallback: Process posts directly from database that don't have AI data yet.
+        Uses exponential backoff for error recovery and adaptive polling intervals.
+        """
         logger.info("Processing unprocessed posts from database (fallback mode)...")
+        
+        # Exponential backoff configuration
+        base_delay = 5  # Base delay in seconds
+        max_delay = 300  # Maximum delay (5 minutes)
+        backoff_multiplier = 2
+        consecutive_errors = 0
+        no_posts_count = 0
+        
+        # Adaptive polling intervals
+        idle_poll_interval = 60  # When no posts found
+        active_poll_interval = 10  # When posts are being processed
+        current_poll_interval = idle_poll_interval
         
         while True:
             try:
@@ -277,12 +292,29 @@ class ResponseBotService:
                         seen_ids.add(post['id'])
                         posts.append(post)
                 
+                # Reset error counter on successful query
+                consecutive_errors = 0
+                
                 if not posts:
-                    logger.info("No unprocessed posts found. Waiting 60 seconds...")
-                    time.sleep(60)
+                    no_posts_count += 1
+                    # Adaptive polling: increase interval if no posts found for a while
+                    if no_posts_count > 10:
+                        current_poll_interval = min(idle_poll_interval * 2, 120)  # Max 2 minutes when idle
+                    else:
+                        current_poll_interval = idle_poll_interval
+                    
+                    logger.debug(f"No unprocessed posts found (count: {no_posts_count}). Waiting {current_poll_interval}s...")
+                    time.sleep(current_poll_interval)
                     continue
                 
+                # Reset no posts counter when posts are found
+                no_posts_count = 0
+                current_poll_interval = active_poll_interval
+                
                 logger.info(f"Found {len(posts)} unprocessed posts. Processing...")
+                
+                processed_count = 0
+                failed_count = 0
                 
                 for post in posts:
                     post_id = post['id']
@@ -293,16 +325,86 @@ class ResponseBotService:
                     if post.get('ai_score') and post.get('ai_score') > 0 and post.get('raw_market_data'):
                         continue
                     
-                    logger.info(f"Processing post #{post_id} for {ticker} (from database)")
-                    self.process_single_post(post_id, ticker, user_content)
-                    time.sleep(2)  # Small delay between posts
+                    try:
+                        logger.info(f"Processing post #{post_id} for {ticker} (from database)")
+                        success = self.process_single_post(post_id, ticker, user_content)
+                        
+                        if success:
+                            processed_count += 1
+                        else:
+                            failed_count += 1
+                            # Use exponential backoff for individual post failures
+                            delay = min(base_delay * (backoff_multiplier ** min(failed_count, 3)), max_delay)
+                            logger.warning(f"Post #{post_id} processing failed. Waiting {delay}s before next post...")
+                            time.sleep(delay)
+                            continue
+                        
+                        # Adaptive delay between posts based on success rate
+                        if processed_count > 0 and failed_count == 0:
+                            # Fast processing when things are working
+                            time.sleep(1)
+                        else:
+                            # Slower when there are failures
+                            time.sleep(2)
+                            
+                    except Exception as post_error:
+                        failed_count += 1
+                        error_type = type(post_error).__name__
+                        logger.error(f"Error processing post #{post_id}: {error_type}: {str(post_error)[:100]}")
+                        
+                        # Determine backoff based on error type
+                        if '429' in str(post_error) or 'quota' in str(post_error).lower():
+                            # Rate limit: longer backoff
+                            delay = min(60 * (backoff_multiplier ** min(failed_count, 2)), max_delay)
+                        elif 'timeout' in str(post_error).lower() or 'connection' in str(post_error).lower():
+                            # Network issues: moderate backoff
+                            delay = min(base_delay * (backoff_multiplier ** min(failed_count, 2)), 120)
+                        else:
+                            # Other errors: shorter backoff
+                            delay = min(base_delay * (backoff_multiplier ** min(failed_count, 1)), 30)
+                        
+                        logger.warning(f"Waiting {delay}s before retrying (error: {error_type})...")
+                        time.sleep(delay)
                 
-                # Wait before next batch
-                time.sleep(30)
+                # Log batch summary
+                if processed_count > 0:
+                    logger.info(f"Batch complete: {processed_count} processed, {failed_count} failed")
+                
+                # Adaptive wait before next batch based on activity
+                if processed_count > 0:
+                    # If we processed posts, check again soon
+                    time.sleep(active_poll_interval)
+                else:
+                    # If no posts processed, wait longer
+                    time.sleep(idle_poll_interval)
                 
             except Exception as e:
-                logger.error(f"Error in database polling: {e}", exc_info=True)
-                time.sleep(60)
+                consecutive_errors += 1
+                error_type = type(e).__name__
+                error_msg = str(e)
+                
+                # Determine backoff based on error type
+                if '429' in error_msg or 'quota' in error_msg.lower():
+                    # Rate limit: exponential backoff up to 5 minutes
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 4)), max_delay)
+                    logger.error(f"Rate limit error in database polling (attempt {consecutive_errors}): {error_type}")
+                elif 'timeout' in error_msg.lower() or 'connection' in error_msg.lower():
+                    # Network issues: moderate exponential backoff
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 180)
+                    logger.error(f"Connection error in database polling (attempt {consecutive_errors}): {error_type}")
+                elif 'database' in error_msg.lower() or 'supabase' in error_msg.lower():
+                    # Database errors: longer backoff
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 120)
+                    logger.error(f"Database error in polling (attempt {consecutive_errors}): {error_type}")
+                else:
+                    # Other errors: standard exponential backoff
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 60)
+                    logger.error(f"Error in database polling (attempt {consecutive_errors}): {error_type}: {error_msg[:100]}")
+                
+                logger.warning(f"Using exponential backoff: waiting {delay}s before retry...")
+                time.sleep(delay)
+                
+                # Reset after successful recovery (handled in try block)
 
     def process_user_posts(self):
         """Process user posts from Redis queue with instant reaction."""
@@ -316,10 +418,19 @@ class ResponseBotService:
         # Get macro context once (shared across jobs)
         macro_context = self.data_engine.get_macro_context()
         
+        # Exponential backoff configuration
+        base_delay = 2
+        max_delay = 60
+        backoff_multiplier = 2
+        consecutive_errors = 0
+        
         while True:
             try:
                 # Blocking Redis listen with 30-second timeout
                 task = self.redis.blpop("analysis_jobs", timeout=30)
+                
+                # Reset error counter on successful operation
+                consecutive_errors = 0
                 
                 if task:
                     # Parse the job
@@ -344,9 +455,47 @@ class ResponseBotService:
                     
                     logger.info(f"Completed analysis for post #{post_id}")
                 
+            except redis.ConnectionError as e:
+                consecutive_errors += 1
+                delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 4)), max_delay)
+                logger.error(f"Redis connection error (attempt {consecutive_errors}): {str(e)[:100]}")
+                logger.warning(f"Using exponential backoff: waiting {delay}s before retry...")
+                time.sleep(delay)
+                
+                # Try to reconnect
+                try:
+                    redis_url = os.getenv("REDIS_URL")
+                    if redis_url:
+                        self.redis = redis.from_url(redis_url)
+                        self.redis.ping()
+                        logger.info("Redis connection restored")
+                        consecutive_errors = 0
+                except Exception as reconnect_error:
+                    logger.warning(f"Redis reconnection failed: {str(reconnect_error)[:100]}")
+                    
+            except json.JSONDecodeError as e:
+                consecutive_errors += 1
+                delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 2)), 10)
+                logger.error(f"JSON decode error in job data (attempt {consecutive_errors}): {str(e)[:100]}")
+                logger.warning(f"Waiting {delay}s before continuing...")
+                time.sleep(delay)
+                
             except Exception as e:
-                logger.error(f"Error processing job: {e}")
-                time.sleep(5)  # Brief pause on error before continuing
+                consecutive_errors += 1
+                error_type = type(e).__name__
+                error_msg = str(e)
+                
+                # Determine backoff based on error type
+                if '429' in error_msg or 'quota' in error_msg.lower():
+                    delay = min(30 * (backoff_multiplier ** min(consecutive_errors, 2)), max_delay)
+                elif 'timeout' in error_msg.lower():
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 2)), 30)
+                else:
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 1)), 10)
+                
+                logger.error(f"Error processing job (attempt {consecutive_errors}): {error_type}: {error_msg[:100]}")
+                logger.warning(f"Using exponential backoff: waiting {delay}s before retry...")
+                time.sleep(delay)
     
     def run(self):
         """Run the response bot service continuously."""
@@ -355,7 +504,7 @@ class ResponseBotService:
         # If Redis not available, use database polling fallback
         if not self.redis_available:
             logger.warning("=" * 80)
-            logger.warning("⚠️  REDIS NOT AVAILABLE - Using Database Polling Fallback")
+            logger.warning("Redis unavailable - using database polling fallback")
             logger.warning("AI analysis will process posts from database every 60 seconds")
             logger.warning("For instant processing, configure REDIS_URL environment variable")
             logger.warning("=" * 80)
@@ -378,7 +527,7 @@ class ResponseBotService:
                         self.redis = redis.from_url(redis_url)
                         self.redis.ping()
                         self.redis_available = True
-                        logger.info("✅ Redis connection restored - switching to instant processing")
+                        logger.info("Redis connection restored - switching to instant processing mode")
                 except Exception as redis_err:
                     logger.warning(f"Redis reconnection failed: {redis_err}")
                     self.redis_available = False

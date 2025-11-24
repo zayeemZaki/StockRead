@@ -59,7 +59,7 @@ export function AvatarUpload({ uid, url, onUpload, compact = false }: AvatarUplo
         });
 
       if (uploadError) {
-        console.error('❌ Upload error:', uploadError.message);
+        console.error('Upload error:', uploadError.message);
         throw uploadError;
       }
 

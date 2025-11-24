@@ -10,6 +10,7 @@ import { StockLogo } from '@/components/ui/stock-logo';
 import { POPULAR_STOCKS } from '@/lib/tickers';
 import { Newspaper, TrendingUp, TrendingDown, ExternalLink, Calendar, Globe } from 'lucide-react';
 import Link from 'next/link';
+import { sanitizeNewsText, sanitizeUrl } from '@/lib/sanitize';
 
 interface NewsItem {
   id: number;
@@ -65,7 +66,15 @@ export default function MarketsPage() {
           .limit(50);
 
         if (!error && data) {
-          setNews(data);
+          // Sanitize news data to prevent XSS
+          const sanitizedNews = data.map((item: NewsItem) => ({
+            ...item,
+            title: sanitizeNewsText(item.title, 200),
+            summary: item.summary ? sanitizeNewsText(item.summary, 500) : undefined,
+            source: sanitizeNewsText(item.source, 100),
+            url: sanitizeUrl(item.url) || '#',
+          }));
+          setNews(sanitizedNews);
         }
       } catch (error) {
         console.error('Error fetching news:', error);

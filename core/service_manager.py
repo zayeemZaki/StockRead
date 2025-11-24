@@ -34,13 +34,13 @@ def run_news_service(news_service: NewsService):
 
 
 def start_all_services():
-    """Start all background services with improved error handling."""
-    logger.info("🚀 Starting Stock Read services...")
+    """Start all background services with error handling and status tracking."""
+    logger.info("Starting background services")
     
     def start_service(service_name: str, service_class, target_method: Callable):
         """Start a background service with error handling."""
         try:
-            logger.info(f"Initializing {service_name}...")
+            logger.info(f"Initializing service: {service_name}")
             service_instance = service_class()
             service_instances[service_name] = service_instance
             
@@ -57,7 +57,7 @@ def start_all_services():
                 'thread_alive': service_thread.is_alive(),
                 'error': None
             }
-            logger.info(f"✅ {service_name} started successfully")
+            logger.info(f"Service started: {service_name} (thread_alive={service_thread.is_alive()})")
             return True
         except Exception as e:
             service_status[service_name] = {
@@ -65,10 +65,12 @@ def start_all_services():
                 'thread_alive': False,
                 'error': str(e)
             }
-            logger.error(f"❌ {service_name} failed to start: {e}", exc_info=True)
+            logger.error(f"Service initialization failed: {service_name}", exc_info=True, extra={
+                'service_name': service_name,
+                'error': str(e)
+            })
             return False
     
-    # Define service startup configuration
     services_config = [
         ('MarketMaker', MarketMakerService, lambda s: s.run()),
         ('ResponseBot', ResponseBotService, lambda s: s.run()),
@@ -86,61 +88,60 @@ def start_all_services():
         else:
             failed_count += 1
     
-    # Log comprehensive startup status
-    logger.info("=" * 80)
-    logger.info(f"Service Startup Summary:")
-    logger.info(f"  ✅ Started: {started_count}/{len(services_config)}")
-    logger.info(f"  ❌ Failed: {failed_count}/{len(services_config)}")
-    logger.info("=" * 80)
+    logger.info(
+        f"Service startup complete: started={started_count}, failed={failed_count}, total={len(services_config)}",
+        extra={
+            'started_count': started_count,
+            'failed_count': failed_count,
+            'total_services': len(services_config)
+        }
+    )
     
-    # Log detailed status for each service
     for service_name, status in service_status.items():
-        status_str = "✅ RUNNING" if status['initialized'] and status['thread_alive'] else "❌ FAILED"
-        logger.info(f"  {status_str} - {service_name}: {status}")
+        status_level = 'running' if status['initialized'] and status['thread_alive'] else 'failed'
+        logger.debug(f"Service status: {service_name}={status_level}", extra={
+            'service_name': service_name,
+            'status': status
+        })
     
     if started_count > 0:
-        logger.info("✅ Stock Read services started (some services may be running in degraded mode)")
+        logger.info("Background services operational (degraded mode possible)")
     else:
-        logger.warning("⚠️  No background services started - API endpoints will still work but background processing disabled")
+        logger.warning("No background services started - API endpoints available but background processing disabled")
 
 
 def stop_all_services():
     """Stop all background services gracefully."""
-    logger.info("🛑 Shutting down services...")
+    logger.info("Initiating service shutdown")
     stop_event.set()
     
-    # Log thread status before shutdown
-    logger.info("=" * 80)
-    logger.info("Service Shutdown Status (before shutdown):")
-    for service_name, thread in background_threads:
-        logger.info(f"  {service_name}: {'ALIVE' if thread.is_alive() else 'STOPPED'}")
-    logger.info("=" * 80)
+    shutdown_timeout = 10
+    shutdown_results = {}
     
-    # Wait for threads to finish (with timeout)
-    shutdown_timeout = 10  # Increased timeout for graceful shutdown
     for service_name, thread in background_threads:
         if thread.is_alive():
-            logger.info(f"Waiting for {service_name} to stop (timeout: {shutdown_timeout}s)...")
+            logger.debug(f"Waiting for service shutdown: {service_name} (timeout={shutdown_timeout}s)")
             thread.join(timeout=shutdown_timeout)
             if thread.is_alive():
-                logger.warning(f"⚠️  {service_name} did not stop gracefully within {shutdown_timeout}s")
+                logger.warning(f"Service shutdown timeout: {service_name}", extra={
+                    'service_name': service_name,
+                    'timeout': shutdown_timeout
+                })
                 service_status[service_name]['shutdown_status'] = 'timeout'
+                shutdown_results[service_name] = 'timeout'
             else:
-                logger.info(f"✅ {service_name} stopped gracefully")
+                logger.debug(f"Service stopped: {service_name}")
                 service_status[service_name]['shutdown_status'] = 'success'
+                shutdown_results[service_name] = 'success'
         else:
-            logger.info(f"ℹ️  {service_name} was already stopped")
+            logger.debug(f"Service already stopped: {service_name}")
             service_status[service_name]['shutdown_status'] = 'already_stopped'
+            shutdown_results[service_name] = 'already_stopped'
     
-    # Log final shutdown status
-    logger.info("=" * 80)
-    logger.info("Final Service Shutdown Status:")
-    for service_name, status in service_status.items():
-        shutdown_status = status.get('shutdown_status', 'unknown')
-        logger.info(f"  {service_name}: {shutdown_status}")
-    logger.info("=" * 80)
-    
-    logger.info("👋 All services shutdown complete")
+    logger.info(
+        f"Service shutdown complete: {len(shutdown_results)} services",
+        extra={'shutdown_results': shutdown_results}
+    )
 
 
 def get_service_instance(service_name: str):

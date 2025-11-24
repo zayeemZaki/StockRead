@@ -196,17 +196,17 @@ class AIService:
         Your job is to provide an OBJECTIVE market analysis for {ticker}, then compare it to the user's thesis.
         
         ═══════════════════════════════════════════════════════════════════════════
-        📊 SECTION 1: THE EVIDENCE (100% OBJECTIVE - NO USER BIAS)
+        SECTION 1: THE EVIDENCE (100% OBJECTIVE - NO USER BIAS)
         ═══════════════════════════════════════════════════════════════════════════
         
-        🌍 MACRO CONTEXT:
+        MACRO CONTEXT:
         - Market Mood: {vix_status} (VIX: {vix_value})
         
-        📍 SECTOR & INDUSTRY:
+        SECTOR & INDUSTRY:
         - Sector: {sector}
         - Industry: {industry}
         
-        📈 VALUATION & FUNDAMENTALS:
+        VALUATION & FUNDAMENTALS:
         - Current Price: ${price}
         - Market Cap: {mcap}
         - Trailing P/E: {pe}
@@ -214,43 +214,43 @@ class AIService:
         - PEG Ratio: {peg}
         - Price/Book: {pb}
         
-        💰 PROFITABILITY & GROWTH:
+        PROFITABILITY & GROWTH:
         - Return on Equity: {(roe * 100) if roe else 'N/A'}%
         - Profit Margin: {(profit_margin * 100) if profit_margin else 'N/A'}%
         - Revenue Growth: {(revenue_growth * 100) if revenue_growth else 'N/A'}%
         - Earnings Growth: {(earnings_growth * 100) if earnings_growth else 'N/A'}%
         
-        🏦 FINANCIAL HEALTH:
+        FINANCIAL HEALTH:
         - Debt/Equity: {debt_to_equity if debt_to_equity else 'N/A'}
         - Current Ratio: {current_ratio if current_ratio else 'N/A'}
         
-        💵 DIVIDEND (if applicable):
+        DIVIDEND (if applicable):
         - Dividend Yield: {(div_yield * 100) if div_yield else 'N/A'}%
         - Payout Ratio: {(payout_ratio * 100) if payout_ratio else 'N/A'}%
         
-        📊 52-WEEK RANGE ANALYSIS:
+        52-WEEK RANGE ANALYSIS:
         - 52W High: ${week_52_high if week_52_high else 'N/A'}
         - 52W Low: ${week_52_low if week_52_low else 'N/A'}
         - Distance from High: {round(distance_from_high, 1) if distance_from_high else 'N/A'}%
         - Distance from Low: +{round(distance_from_low, 1) if distance_from_low else 'N/A'}%
         
-        🏛️ INSTITUTIONAL DATA (Wall Street Intelligence):
+        INSTITUTIONAL DATA (Wall Street Intelligence):
         - Analyst Target: ${target_mean if target_mean else 'N/A'}
         - Analyst Consensus: {recommendation if recommendation else 'N/A'}
         - Short Float: {(short_float * 100) if short_float else 'N/A'}%
         - Insider Ownership: {(insider_ownership * 100) if insider_ownership else 'N/A'}%
         
-        📉 TECHNICAL ANALYSIS (Enhanced):
+        TECHNICAL ANALYSIS (Enhanced):
         - Trend: {tech_trend}
         - RSI: {tech_rsi}
         - MACD Signal: {macd_trend}
         - Bollinger Band Position: {bb_position}
         
-        📰 NEWS HEADLINES:
+        NEWS HEADLINES:
         {news_summary}
         
         ═══════════════════════════════════════════════════════════════════════════
-        🎯 OBJECTIVE MARKET SCORE CALCULATION (DO NOT LET USER INFLUENCE THIS)
+        OBJECTIVE MARKET SCORE CALCULATION (DO NOT LET USER INFLUENCE THIS)
         ═══════════════════════════════════════════════════════════════════════════
         
         Weight the evidence as follows:

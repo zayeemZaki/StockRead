@@ -65,13 +65,13 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
           .limit(20);
 
         if (error) {
-          console.error('❌ Supabase error fetching news:', error);
+          console.error('Supabase error fetching news:', error);
           setNews([]);
         } else {
           setNews(data || []);
         }
       } catch (error) {
-        console.error('❌ Error fetching news:', error);
+        console.error('Error fetching news:', error);
         setNews([]);
       } finally {
         setIsLoadingNews(false);
@@ -86,7 +86,7 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
           .order('symbol', { ascending: true });
 
         if (error) {
-          console.error('❌ Supabase error fetching prices:', error);
+          console.error('Supabase error fetching prices:', error);
           setStockPrices({});
         } else {
           // Convert array to object keyed by symbol
@@ -98,7 +98,7 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
           setStockPrices(pricesMap);
         }
       } catch (error) {
-        console.error('❌ Error fetching stock prices:', error);
+        console.error('Error fetching stock prices:', error);
         setStockPrices({});
       } finally {
         setIsLoadingPrices(false);

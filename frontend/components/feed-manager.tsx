@@ -81,6 +81,10 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
   }, [inView, hasMore, isLoadingMore, loadMorePosts]);
 
   // Supabase Realtime subscription for ticker_insights updates
+  // NOTE: Current implementation uses ticker-level insights (one insight per ticker symbol).
+  // This is intentional - ticker_insights represents global market analysis for a ticker,
+  // not post-specific analysis. All posts with the same ticker share the same insight.
+  // For post-specific AI analysis, see post.ai_score, post.ai_risk, post.ai_summary fields.
   useEffect(() => {
     const supabase = createClient();
     
@@ -93,6 +97,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
       }, (payload: { new: { ticker: string; ai_score: number; ai_signal: string; ai_risk: string } }) => {
         const updatedRow = payload.new;
         
+        // Update insights map - this applies to all posts with matching ticker
         setInsights(prev => {
           const newMap = new Map(prev);
           newMap.set(updatedRow.ticker, {

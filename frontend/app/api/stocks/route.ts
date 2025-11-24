@@ -86,7 +86,7 @@ export async function GET() {
     return NextResponse.json(stockData);
 
   } catch (error: unknown) {
-    console.error('❌ Yahoo Finance Error:', error);
+    console.error('Yahoo Finance error:', error);
 
     // Return mock data as fallback
     const fallbackData: Record<string, StockData> = {};

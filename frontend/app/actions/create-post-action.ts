@@ -2,9 +2,45 @@
 
 import Redis from 'ioredis';
 import { createClient } from '@/lib/supabase-server';
+import { sanitizeTicker, sanitizeContent } from '@/lib/sanitize';
+
+// Singleton Redis client for connection pooling
+let redisClient: Redis | null = null;
+
+function getRedisClient(): Redis | null {
+  if (!process.env.REDIS_URL) {
+    return null;
+  }
+  
+  if (!redisClient) {
+    redisClient = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+  }
+  
+  return redisClient;
+}
 
 export async function createPostAction(ticker: string, content: string) {
   try {
+    // Sanitize inputs
+    const sanitizedTicker = sanitizeTicker(ticker);
+    const sanitizedContent = sanitizeContent(content);
+    
+    // Validate inputs
+    if (!sanitizedTicker || sanitizedTicker.length === 0) {
+      return { success: false, error: 'Invalid ticker symbol' };
+    }
+    
+    if (!sanitizedContent || sanitizedContent.trim().length < 5) {
+      return { success: false, error: 'Content must be at least 5 characters' };
+    }
+    
     // Auth check
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -30,8 +66,8 @@ export async function createPostAction(ticker: string, content: string) {
       .from('posts')
       .insert({
         user_id: user.id,
-        ticker: ticker.toUpperCase(),
-        content: content,
+        ticker: sanitizedTicker,
+        content: sanitizedContent,
         author_username: profile.username,
         author_avatar: profile.avatar_url,
       })
@@ -45,13 +81,16 @@ export async function createPostAction(ticker: string, content: string) {
 
     // Redis Push (The Trigger) - Non-blocking: post succeeds even if Redis fails
     try {
-      if (process.env.REDIS_URL) {
-        const redis = new Redis(process.env.REDIS_URL);
+      const redis = getRedisClient();
+      if (redis) {
+        // Ensure connection is established
+        if (redis.status !== 'ready') {
+          await redis.connect();
+        }
         await redis.lpush('analysis_jobs', JSON.stringify({
           postId: data.id,
-          ticker: ticker.toUpperCase()
+          ticker: sanitizedTicker
         }));
-        await redis.quit();
       } else {
         console.warn('REDIS_URL not configured - AI analysis will not be triggered');
       }

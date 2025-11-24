@@ -33,17 +33,30 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .replace(/[^a-z0-9]/g, ''); // Remove special characters
   };
 
-  // Fetch all profiles to find matching username
-  // We need to check both exact match and slugified match
-  const { data: allProfiles } = await supabase
+  // Optimized: Try case-insensitive exact match first (database query)
+  const slugifiedSearch = slugifyUsername(decodedUsername);
+  
+  // First attempt: Case-insensitive exact match
+  let { data: profiles } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url');
+    .select('id, username, avatar_url')
+    .ilike('username', decodedUsername)
+    .limit(1);
 
-  // Find profile that matches either the original username or slugified version
-  const profile = allProfiles?.find(p => 
-    p.username === decodedUsername || 
-    slugifyUsername(p.username) === decodedUsername.toLowerCase()
-  );
+  let profile = profiles?.[0];
+
+  // Second attempt: If no exact match, try to find by slugified username
+  // This requires checking all profiles, but only if first query fails
+  if (!profile) {
+    const { data: allProfiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .limit(1000); // Reasonable limit for fallback search
+    
+    profile = allProfiles?.find(p => 
+      slugifyUsername(p.username) === slugifiedSearch
+    );
+  }
 
   if (!profile) {
     notFound();

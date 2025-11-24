@@ -42,7 +42,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           .eq('following_id', userId);
 
         if (error) {
-          console.error('❌ Error fetching followers:', error.message, error);
+          console.error('Error fetching followers:', error.message, error);
           throw error;
         }
 
@@ -75,7 +75,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           .eq('follower_id', userId);
 
         if (error) {
-          console.error('❌ Error fetching following:', error.message, error);
+          console.error('Error fetching following:', error.message, error);
           throw error;
         }
 

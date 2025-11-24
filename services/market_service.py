@@ -6,11 +6,14 @@ import json
 import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pydantic import ValidationError
 
 import yfinance as yf
 import requests
 import pandas as pd
 from GoogleNews import GoogleNews
+
+from core.market_schema import MarketDataSchema
 
 try:
     import pandas_ta as ta
@@ -90,7 +93,7 @@ class MarketDataService:
             try:
                 cached_data = self.redis.get(cache_key)
                 if cached_data:
-                    logger.info(f"✅ Cache Hit for {ticker} price data")
+                    logger.debug(f"Cache hit: ticker={ticker}, type=price_data")
                     return json.loads(cached_data)
             except Exception as e:
                 logger.warning(f"Redis cache read error: {e}")
@@ -117,10 +120,11 @@ class MarketDataService:
             else:
                 mcap_str = f"${round(mcap/1_000_000, 2)}M"
 
-            data = {
-                "price": round(price, 2),
-                "change_percent": round(change_percent, 2),
-                "volume": int(volume),
+            # Build raw data dictionary
+            raw_data = {
+                "price": price,
+                "change_percent": change_percent,
+                "volume": int(volume) if volume else None,
                 "market_cap": mcap_str,
                 "pe_ratio": info.get('trailingPE', 'N/A'),
                 "peg_ratio": info.get('pegRatio', 'N/A'),
@@ -163,11 +167,27 @@ class MarketDataService:
                 "enterpriseToEbitda": info.get('enterpriseToEbitda')
             }
             
+            # Validate and sanitize data using Pydantic schema
+            try:
+                validated_data = MarketDataSchema(**raw_data)
+                data = validated_data.dict(exclude_none=False)
+            except ValidationError as e:
+                logger.warning(f"Market data validation failed for {ticker}: {e.errors()}")
+                # Fallback: use raw data but log validation issues
+                data = raw_data
+                # Try to fix critical fields manually
+                if 'price' in raw_data and raw_data['price']:
+                    try:
+                        data['price'] = round(float(raw_data['price']), 2)
+                    except (ValueError, TypeError):
+                        logger.error(f"Invalid price data for {ticker}: {raw_data.get('price')}")
+                        return None
+            
             # Step C: Write Cache
             if self.redis_available:
                 try:
                     self.redis.setex(cache_key, 60, json.dumps(data))  # 60 second TTL
-                    logger.info(f"💾 Cached price data for {ticker}")
+                    logger.debug(f"Cached price data: ticker={ticker}")
                 except Exception as e:
                     logger.warning(f"Redis cache write error: {e}")
             
@@ -246,7 +266,7 @@ class MarketDataService:
             try:
                 cached_data = self.redis.get(cache_key)
                 if cached_data:
-                    logger.info(f"✅ Cache Hit for {ticker} technical data")
+                    logger.debug(f"Cache hit: ticker={ticker}, type=technical_data")
                     return json.loads(cached_data)
             except Exception as e:
                 logger.warning(f"Redis cache read error: {e}")
@@ -346,7 +366,7 @@ class MarketDataService:
             if self.redis_available:
                 try:
                     self.redis.setex(cache_key, 300, json.dumps(data))  # 300 second (5 minute) TTL
-                    logger.info(f"💾 Cached technical data for {ticker}")
+                    logger.debug(f"Cached technical data: ticker={ticker}")
                 except Exception as e:
                     logger.warning(f"Redis cache write error: {e}")
             

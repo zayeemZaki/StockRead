@@ -26,9 +26,13 @@ import pytz
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import logging
+
 from services.market_service import MarketDataService
 from services.ai_service import AIService
 from services.db_service import DatabaseService
+
+logger = logging.getLogger(__name__)
 
 
 def safe_float(value):
@@ -93,9 +97,17 @@ class GlobalAnalyst:
         # Get user-interest tickers from database
         self.tracked_tickers = self._get_user_interest_tickers()
         
-        print(f"\n✅ Global Analyst initialized")
-        print(f"   📊 User-interest stocks: {len(self.tracked_tickers)} (batch size: 5, analyzed 3x daily)")
-        print(f"   🛡️  Core stocks included: {len([t for t in self.CORE_STOCKS if t in self.tracked_tickers])}/{len(self.CORE_STOCKS)}")
+        core_stocks_count = len([t for t in self.CORE_STOCKS if t in self.tracked_tickers])
+        logger.info(
+            "Global Analyst initialized",
+            extra={
+                'tracked_tickers_count': len(self.tracked_tickers),
+                'core_stocks_included': core_stocks_count,
+                'total_core_stocks': len(self.CORE_STOCKS),
+                'batch_size': 5,
+                'analysis_frequency': '3x daily'
+            }
+        )
     
     def _get_user_interest_tickers(self) -> list:
         """
@@ -121,21 +133,27 @@ class GlobalAnalyst:
             other_tickers = sorted([t for t in all_tickers if t not in self.CORE_STOCKS])
             sorted_tickers = core_in_list + other_tickers
             
-            print(f"\n📊 Fetched {len(db_tickers)} tickers from database")
-            print(f"   + {len(self.CORE_STOCKS)} core stocks (safety net)")
-            print(f"   = {len(sorted_tickers)} total tracked stocks")
-            
+            logger.info(
+                "Fetched tickers from database",
+                extra={
+                    'db_tickers_count': len(db_tickers),
+                    'core_stocks_count': len(self.CORE_STOCKS),
+                    'total_tracked': len(sorted_tickers)
+                }
+            )
             return sorted_tickers
             
         except Exception as e:
-            print(f"⚠️  Failed to fetch tickers from database: {e}")
-            print(f"   Falling back to core stocks only")
+            logger.warning(
+                "Failed to fetch tickers from database, using core stocks only",
+                extra={'error': str(e)}
+            )
             return self.CORE_STOCKS.copy()
     
     def refresh_ticker_list(self):
         """Refresh the list of tracked tickers from the database."""
         self.tracked_tickers = self._get_user_interest_tickers()
-        print(f"🔄 Refreshed ticker list: {len(self.tracked_tickers)} stocks")
+        logger.info(f"Refreshed ticker list: {len(self.tracked_tickers)} stocks")
     
     def is_market_open(self) -> bool:
         """Check if US market is currently open (9:30 AM - 4:00 PM ET, Mon-Fri)"""
@@ -183,7 +201,7 @@ class GlobalAnalyst:
         Returns:
             Dictionary of {ticker: analysis_result}
         """
-        print(f"   📦 Batch analyzing {len(tickers)} stocks: {', '.join(tickers)}...")
+        logger.info(f"Batch analysis started: tickers={tickers}, count={len(tickers)}")
         
         # Fetch market data for all tickers in batch
         batch_data = {}
@@ -193,7 +211,7 @@ class GlobalAnalyst:
                 batch_data[ticker] = market_data
         
         if not batch_data:
-            print(f"   ❌ No market data for batch")
+            logger.warning("Batch analysis failed: no market data available", extra={'tickers': tickers})
             return {}
         
         # Check if AI service is available
@@ -217,15 +235,18 @@ class GlobalAnalyst:
                 if self._save_ticker_insight(ticker, analysis, batch_data[ticker], macro_context):
                     saved_count += 1
             
-            print(f"   ✅ Saved {saved_count}/{len(results)} stocks")
+            logger.info(
+                f"Batch analysis complete: saved={saved_count}, total={len(results)}",
+                extra={'saved_count': saved_count, 'total_count': len(results)}
+            )
             return results
             
         except Exception as e:
             error_msg = str(e)
             if '429' in error_msg or 'quota' in error_msg.lower():
-                print(f"   ⏳ Rate limit hit - skipping batch")
+                logger.warning("Batch analysis rate limited", extra={'tickers': tickers})
             else:
-                print(f"   ❌ Batch error: {error_msg[:60]}")
+                logger.error(f"Batch analysis error: {error_msg[:100]}", extra={'tickers': tickers}, exc_info=True)
             return {}
     
     def _create_batch_prompt(self, batch_data: dict, macro_context=None) -> str:
@@ -266,11 +287,11 @@ Respond ONLY with valid JSON (no markdown):
                 data = json.loads(json_match.group())
                 return data
             
-            print(f"   ⚠️  Could not parse JSON from response")
+            logger.warning("Failed to parse JSON from batch response", extra={'tickers': tickers})
             return {}
             
         except Exception as e:
-            print(f"   ❌ Parse error: {str(e)[:50]}")
+            logger.error(f"Batch response parse error: {str(e)[:100]}", extra={'tickers': tickers}, exc_info=True)
             return {}
     
     def _save_ticker_insight(self, ticker: str, analysis: dict, market_data: dict, macro_context=None) -> bool:
@@ -321,16 +342,14 @@ Respond ONLY with valid JSON (no markdown):
                 on_conflict='ticker'
             ).execute()
             
-            signal_emoji = {
-                'Strong Buy': '🟢🟢', 'Buy': '🟢', 'Hold': '⚪',
-                'Sell': '🔴', 'Strong Sell': '🔴🔴'
-            }.get(ai_signal, '⚪')
-            
-            print(f"      {ticker}: {signal_emoji} {ai_score}/100 | {ai_risk}")
+            logger.debug(
+                f"Saved ticker insight: ticker={ticker}, score={ai_score}, signal={ai_signal}, risk={ai_risk}",
+                extra={'ticker': ticker, 'ai_score': ai_score, 'ai_signal': ai_signal, 'ai_risk': ai_risk}
+            )
             return True
             
         except Exception as e:
-            print(f"      {ticker}: ❌ Save error")
+            logger.error(f"Failed to save ticker insight: ticker={ticker}", extra={'ticker': ticker}, exc_info=True)
             return False
     
     def analyze_ticker(self, ticker: str, macro_context=None) -> bool:
@@ -350,15 +369,15 @@ Respond ONLY with valid JSON (no markdown):
         for attempt in range(max_retries):
             try:
                 if attempt > 0:
-                    print(f"   🔄 Retry {attempt}/{max_retries} for {ticker}...", end=" ")
+                    logger.debug(f"Retry attempt {attempt}/{max_retries}: ticker={ticker}")
                 else:
-                    print(f"   📊 Analyzing {ticker}...", end=" ")
+                    logger.debug(f"Analyzing ticker: {ticker}")
                 
                 # 1. Fetch market data
                 market_data = self.data_engine.get_price_context(ticker)
                 
                 if not market_data:
-                    print(f"❌ No market data")
+                    logger.warning(f"No market data available: ticker={ticker}", extra={'ticker': ticker})
                     return False
                 
                 # 2. Fetch technicals and news
@@ -395,18 +414,22 @@ Respond ONLY with valid JSON (no markdown):
                             retry_delay = base_delay * (2 ** attempt)
                         
                         if attempt < max_retries - 1:
-                            print(f"⏳ Rate limit, waiting {retry_delay:.1f}s...")
+                            logger.warning(f"Rate limit hit, waiting {retry_delay:.1f}s: ticker={ticker}", extra={
+                                'ticker': ticker, 'retry_delay': retry_delay, 'attempt': attempt
+                            })
                             time.sleep(retry_delay)
                             continue
                         else:
-                            print(f"❌ Rate limit - skipping")
+                            logger.error(f"Rate limit exceeded after {max_retries} attempts: ticker={ticker}", extra={
+                                'ticker': ticker, 'max_retries': max_retries
+                            })
                             return False
                     else:
                         # Non-rate-limit error
                         raise ai_error
                 
                 if not insight:
-                    print(f"❌ AI analysis failed")
+                    logger.error(f"AI analysis failed: ticker={ticker}", extra={'ticker': ticker})
                     return False
                 
                 # 5. Convert score to signal
@@ -458,27 +481,22 @@ Respond ONLY with valid JSON (no markdown):
                     on_conflict='ticker'
                 ).execute()
                 
-                # 8. Print result
-                signal_emoji = {
-                    'Strong Buy': '🟢🟢',
-                    'Buy': '🟢',
-                    'Hold': '⚪',
-                    'Sell': '🔴',
-                    'Strong Sell': '🔴🔴'
-                }.get(ai_signal, '⚪')
-                
-                print(f"{signal_emoji} {ai_signal} ({ai_score}/100) | {ai_risk} Risk")
+                logger.debug(f"Analysis result: ticker={ticker}, signal={ai_signal}, score={ai_score}, risk={ai_risk}")
                 
                 return True
                 
             except Exception as e:
                 error_msg = str(e)
                 if attempt < max_retries - 1:
-                    print(f"❌ Error, retrying...")
+                    logger.warning(f"Error during analysis, retrying: ticker={ticker}, attempt={attempt+1}/{max_retries}", extra={
+                        'ticker': ticker, 'attempt': attempt, 'error': error_msg[:100]
+                    })
                     time.sleep(base_delay * (2 ** attempt))
                     continue
                 else:
-                    print(f"❌ Error: {error_msg[:50]}")
+                    logger.error(f"Analysis failed after {max_retries} attempts: ticker={ticker}", extra={
+                        'ticker': ticker, 'max_retries': max_retries, 'error': error_msg[:100]
+                    }, exc_info=True)
                     return False
         
         return False
@@ -499,23 +517,27 @@ Respond ONLY with valid JSON (no markdown):
         # Check if market is open
         if not self.is_market_open():
             now_et = datetime.now(self.eastern)
-            print(f"\n🛑 Market is closed ({now_et.strftime('%Y-%m-%d %H:%M:%S %Z')})")
-            print("   Skipping analysis until market opens (9:30 AM - 4:00 PM ET, Mon-Fri)\n")
+            logger.info(f"Market closed, skipping analysis: time={now_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
             return
         
-        print(f"\n{'='*80}")
-        print(f"🤖 Global Analyst - Batch Analysis Mode ({description})")
         now_et = datetime.now(self.eastern)
-        print(f"⏰ Started: {now_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        print(f"📊 Analyzing {len(ticker_list)} stocks in batches of {batch_size}")
-        print(f"⏱️  20-second delay between batches")
-        print(f"{'='*80}\n")
+        logger.info(
+            f"Batch analysis started: mode={description}, tickers={len(ticker_list)}, batch_size={batch_size}",
+            extra={
+                'description': description,
+                'ticker_count': len(ticker_list),
+                'batch_size': batch_size,
+                'start_time': now_et.isoformat()
+            }
+        )
         
         # Fetch macro context once for all stocks
-        print("🌍 Fetching macro market context (VIX)...")
         macro_context = self.data_engine.get_macro_context()
         if macro_context:
-            print(f"   📊 VIX: {macro_context['vix']} | Sentiment: {macro_context['market_sentiment']}\n")
+            logger.debug(
+                f"Macro context fetched: vix={macro_context.get('vix')}, sentiment={macro_context.get('market_sentiment')}",
+                extra=macro_context
+            )
         
         # Track statistics
         total_analyzed = 0
@@ -527,7 +549,7 @@ Respond ONLY with valid JSON (no markdown):
             batch_num = (i // batch_size) + 1
             total_batches = (len(ticker_list) + batch_size - 1) // batch_size
             
-            print(f"📦 Batch {batch_num}/{total_batches}")
+            logger.debug(f"Processing batch {batch_num}/{total_batches}: tickers={batch}")
             
             # Analyze batch
             results = self.analyze_batch(batch, macro_context)
@@ -535,20 +557,23 @@ Respond ONLY with valid JSON (no markdown):
             
             # Wait 20 seconds before next batch (except last batch)
             if i + batch_size < len(ticker_list):
-                print(f"   ⏳ Waiting 20 seconds before next batch...\n")
                 time.sleep(20)
         
-        # Print summary
+        # Log summary
         elapsed = time.time() - start_time
         elapsed_mins = elapsed / 60
-        
-        print(f"\n{'='*80}")
-        print(f"✅ Batch Analysis Complete!")
-        print(f"   📊 Total Stocks Analyzed: {total_analyzed}/{len(ticker_list)}")
-        print(f"   ⏱️  Time Elapsed: {elapsed_mins:.1f} minutes ({elapsed:.0f} seconds)")
         now_et = datetime.now(self.eastern)
-        print(f"   ⏰ Finished: {now_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        print(f"{'='*80}\n")
+        
+        logger.info(
+            f"Batch analysis complete: analyzed={total_analyzed}, total={len(ticker_list)}, elapsed={elapsed_mins:.1f}m",
+            extra={
+                'analyzed_count': total_analyzed,
+                'total_count': len(ticker_list),
+                'elapsed_seconds': elapsed,
+                'elapsed_minutes': elapsed_mins,
+                'end_time': now_et.isoformat()
+            }
+        )
     
     def run_continuous(self):
         """
@@ -557,15 +582,15 @@ Respond ONLY with valid JSON (no markdown):
         - Refreshes ticker list at the start of each day
         - Skips when market is closed.
         """
-        print("\n🚀 Global Analyst Service Started (User-Interest Tracking Mode)")
-        print(f"📊 Tracked stocks: {len(self.tracked_tickers)} (batch: 5, analyzed 3x daily)")
-        print(f"⏰ Schedule:")
-        print(f"   - 10:00 AM ET: Full refresh + analysis")
-        print(f"   - 12:00 PM ET: Analysis")
-        print(f"   - 2:30 PM ET: Analysis")
-        print(f"⏱️  Batch delay: 20 seconds")
-        print(f"💾 Database: ticker_insights table")
-        print("\nPress Ctrl+C to stop...\n")
+        logger.info(
+            "Global Analyst service started: mode=user_interest_tracking",
+            extra={
+                'tracked_tickers_count': len(self.tracked_tickers),
+                'batch_size': 5,
+                'analysis_frequency': '3x daily',
+                'schedule': ['10:00 AM ET (refresh + analysis)', '12:00 PM ET (analysis)', '2:30 PM ET (analysis)']
+            }
+        )
         
         # Target times (Eastern Time)
         target_times = [(10, 0), (12, 0), (14, 30)]  # (hour, minute)
@@ -590,7 +615,7 @@ Respond ONLY with valid JSON (no markdown):
                         else:
                             next_open = next_open + timedelta(days=1)
                     
-                    print(f"💤 Market closed. Next run at {next_open.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+                    logger.info(f"Market closed, next run scheduled: {next_open.strftime('%Y-%m-%d %H:%M:%S %Z')}")
                     sleep_seconds = (next_open - now_et).total_seconds()
                     time.sleep(max(60, sleep_seconds))  # Sleep at least 1 min
                     last_run_date = None  # Reset for new day
@@ -614,17 +639,16 @@ Respond ONLY with valid JSON (no markdown):
                 # Check if we should run now (within 5 minutes of target time)
                 time_diff = (now_et - next_run).total_seconds()
                 if abs(time_diff) < 300 and last_run_date != current_date:  # Within 5 minutes and haven't run today
-                    print(f"\n⏰ Scheduled run time reached ({now_et.strftime('%H:%M:%S %Z')})")
+                    logger.info(f"Scheduled run time reached: {now_et.strftime('%H:%M:%S %Z')}")
                     
                     # 10 AM: Refresh ticker list and analyze all
                     if next_hour == 10:
-                        print("\n🌅 Morning Analysis - Refreshing ticker list and analyzing all stocks")
+                        logger.info("Morning analysis: refreshing ticker list and analyzing all stocks")
                         self.refresh_ticker_list()
-                        print("\n" + "="*80 + "\n")
                         self.analyze_all_tickers(self.tracked_tickers, "user-interest stocks", batch_size=5)
                     # 12 PM and 2:30 PM: Analyze current list
                     else:
-                        print(f"\n📊 {now_et.strftime('%I:%M %p')} Analysis - User-Interest Stocks")
+                        logger.info(f"Analysis run: {now_et.strftime('%I:%M %p')} - User-Interest Stocks")
                         self.analyze_all_tickers(self.tracked_tickers, "user-interest stocks", batch_size=5)
                     
                     last_run_date = current_date
@@ -640,18 +664,14 @@ Respond ONLY with valid JSON (no markdown):
                 
                 # Sleep until next run
                 sleep_seconds = max(60, (next_run - datetime.now(self.eastern)).total_seconds())
-                print(f"💤 Next run at {next_run.strftime('%Y-%m-%d %H:%M:%S %Z')} (in {sleep_seconds/60:.1f} minutes)")
+                logger.debug(f"Next run scheduled: {next_run.strftime('%Y-%m-%d %H:%M:%S %Z')} (in {sleep_seconds/60:.1f} minutes)")
                 time.sleep(min(sleep_seconds, 300))  # Check every 5 minutes max
         
         except KeyboardInterrupt:
-            print("\n\n🛑 Global Analyst stopped by user")
-            print("👋 Goodbye!\n")
+            logger.info("Global Analyst stopped by user")
         
         except Exception as e:
-            print(f"\n❌ Fatal error: {e}")
-            import traceback
-            traceback.print_exc()
-            print("\nGlobal Analyst stopped due to error.\n")
+            logger.critical(f"Fatal error in Global Analyst: {e}", exc_info=True)
 
 
 def main():

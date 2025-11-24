@@ -32,7 +32,33 @@ export default async function Home() {
     .range(0, 9);
 
   if (error) {
-    return <div className="p-10 text-destructive">Error loading feed: {error.message}</div>;
+    return (
+      <div className="p-10 text-destructive">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Error loading feed</h2>
+            <p className="text-sm">{error.message}</p>
+            {error.code && (
+              <p className="text-xs text-muted-foreground mt-1">Error code: {error.code}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
+            >
+              Try Again
+            </button>
+            <a
+              href="/"
+              className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm"
+            >
+              Go Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const mappedPosts = (posts || []).map(post => ({

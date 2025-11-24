@@ -48,7 +48,7 @@ export function FollowButton({
           });
 
         if (error) {
-          console.error('❌ Follow Error:', error);
+          console.error('Follow error:', error);
           throw error;
         }
       } else {
@@ -60,7 +60,7 @@ export function FollowButton({
           .eq('following_id', profileUserId);
 
         if (error) {
-          console.error('❌ Unfollow Error:', error);
+          console.error('Unfollow error:', error);
           throw error;
         }
       }

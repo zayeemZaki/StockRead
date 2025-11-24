@@ -49,6 +49,18 @@ export function CreatePost({ trigger }: CreatePostProps) {
       return;
     }
 
+    if (!ticker) {
+      toast.error('Please select a ticker');
+      return;
+    }
+
+    // Validate content - must be at least 5 non-whitespace characters
+    const trimmedContent = content.trim();
+    if (!trimmedContent || trimmedContent.length < 5) {
+      toast.error('Content must be at least 5 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
