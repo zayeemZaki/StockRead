@@ -14,12 +14,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise Exception("Missing Supabase credentials. Check your .env file.")
-
 BLACKLIST = ['ANSS', 'DISCA', 'DISCK', 'HES', 'CTLT', 'DFS']
 
 CHUNK_SIZE = 50
@@ -29,7 +23,14 @@ class MarketMakerService:
     """Service for fetching and updating S&P 500 stock prices."""
     
     def __init__(self):
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        """Initialize Market Maker Service with Supabase connection."""
+        supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("Missing Supabase credentials. Required environment variables: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
+        
+        self.supabase: Client = create_client(supabase_url, supabase_key)
         self.tickers = self.get_sp500_tickers()
         logger.info(f"Market Maker Service initialized with {len(self.tickers)} tickers")
     
