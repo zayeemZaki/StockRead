@@ -410,13 +410,14 @@ export function PostCard({
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
-              {liveInsight?.ai_score && (
+              {/* Use liveInsight if available, otherwise fall back to post data */}
+              {(liveInsight?.ai_score ?? post.ai_score) && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-muted-foreground font-medium uppercase">Score:</span>
                   <Badge 
-                    className={`${getAIScoreBadge(liveInsight.ai_score)} text-[10px] px-1.5 h-5 font-bold`}
+                    className={`${getAIScoreBadge(liveInsight?.ai_score ?? post.ai_score ?? 50)} text-[10px] px-1.5 h-5 font-bold`}
                   >
-                    {liveInsight.ai_score}/100
+                    {(liveInsight?.ai_score ?? post.ai_score ?? 0)}/100
                   </Badge>
                 </div>
               )}
@@ -427,12 +428,12 @@ export function PostCard({
                 </Badge>
               )}
               
-              {liveInsight?.ai_risk && (
+              {(liveInsight?.ai_risk ?? post.ai_risk) && (
                 <div className="flex items-center gap-1.5 ml-1">
                   <span className="text-muted-foreground text-[10px] hidden sm:inline">|</span>
                   <span className="text-[10px] text-muted-foreground font-medium uppercase">Risk:</span>
-                  <Badge variant="outline" className={`${getRiskBadge(liveInsight.ai_risk)} text-[10px] px-1.5 h-5`}>
-                    {liveInsight.ai_risk}
+                  <Badge variant="outline" className={`${getRiskBadge(liveInsight?.ai_risk ?? post.ai_risk ?? 'Medium')} text-[10px] px-1.5 h-5`}>
+                    {liveInsight?.ai_risk ?? post.ai_risk}
                   </Badge>
                 </div>
               )}

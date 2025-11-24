@@ -71,8 +71,10 @@ export function CreatePost({ trigger }: CreatePostProps) {
         setOpen(false);
         setTicker('');
         setContent('');
-        // Use router.refresh() instead of window.location.reload() for better UX
-        router.refresh();
+        // Non-blocking refresh - don't wait for it
+        setTimeout(() => {
+          router.refresh();
+        }, 0);
       } else {
         toast.error(result.error || 'Failed to create post');
         // Don't close dialog on error so user can retry

@@ -76,18 +76,21 @@ export function Navbar() {
 
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('username, avatar_url')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data }) => setProfile(data));
-      } else {
-        setProfile(null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only update on sign in/out events, not on token refresh
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data }) => setProfile(data));
+        } else {
+          setProfile(null);
+        }
       }
     });
 

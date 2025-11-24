@@ -172,7 +172,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background text-foreground pt-0 md:pt-16 pb-8 px-2 sm:px-4 lg:px-8">
+      <main className="min-h-screen bg-background text-foreground pt-0 md:pt-16 pb-20 md:pb-8 px-2 sm:px-4 lg:px-8">
         <div className="max-w-4xl mx-auto pt-6 md:pt-0">
           {/* Header Section */}
           <ProfileHeader

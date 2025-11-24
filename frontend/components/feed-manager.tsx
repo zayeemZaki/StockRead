@@ -80,15 +80,50 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
     }
   }, [inView, hasMore, isLoadingMore, loadMorePosts]);
 
-  // Supabase Realtime subscription for ticker_insights updates
-  // NOTE: Current implementation uses ticker-level insights (one insight per ticker symbol).
-  // This is intentional - ticker_insights represents global market analysis for a ticker,
-  // not post-specific analysis. All posts with the same ticker share the same insight.
-  // For post-specific AI analysis, see post.ai_score, post.ai_risk, post.ai_summary fields.
+  // Supabase Realtime subscription for new posts and ticker_insights updates
   useEffect(() => {
     const supabase = createClient();
     
-    const channel = supabase
+      // Subscribe to new posts
+      const postsChannel = supabase
+        .channel('posts_updates')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'posts'
+        }, async (payload) => {
+          try {
+            // Fetch the new post with all relations
+            const { data: newPost } = await supabase
+              .from('posts')
+              .select(`
+                *,
+                author_username,
+                author_avatar,
+                comments ( id ),
+                reactions ( user_id )
+              `)
+              .eq('id', payload.new.id)
+              .single();
+            
+            if (newPost) {
+              // Add to beginning of posts list
+              setPosts(prevPosts => [{
+                ...newPost,
+                profiles: {
+                  username: newPost.author_username || 'Unknown',
+                  avatar_url: newPost.author_avatar || null
+                }
+              }, ...prevPosts]);
+            }
+          } catch (error) {
+            console.error('Error fetching new post:', error);
+          }
+        })
+        .subscribe();
+    
+    // Subscribe to ticker insights updates
+    const insightsChannel = supabase
       .channel('ticker_insights_updates')
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -111,7 +146,8 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(insightsChannel);
     };
   }, []);
 

@@ -62,7 +62,7 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
       />
 
       {isOpen && filteredStocks.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-lg shadow-xl max-h-80 overflow-y-auto">
+        <div className="absolute z-[100] w-full mb-2 bg-popover border border-border rounded-lg shadow-xl max-h-[60vh] overflow-y-auto" style={{ bottom: '100%' }}>
           {filteredStocks.map((stock) => (
             <button
               key={stock.symbol}
