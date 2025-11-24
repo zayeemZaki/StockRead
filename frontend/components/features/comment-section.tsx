@@ -176,7 +176,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
             <div key={comment.id} className="flex gap-3">
               {/* Avatar */}
               <Avatar className="w-9 h-9 flex-shrink-0">
-                <AvatarImage src={comment.profiles.avatar_url} alt={comment.profiles.username} />
+                <AvatarImage src={comment.profiles.avatar_url ?? undefined} alt={comment.profiles.username} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {getInitials(comment.profiles.username)}
                 </AvatarFallback>
