@@ -610,7 +610,7 @@ Contributions are welcome. Please follow these guidelines:
 
 This project is proprietary and confidential. All rights reserved.
 
-For licensing inquiries, contact: [your-email@example.com]
+For licensing inquiries, contact: [zayeemzaki45@gmail.com]
 
 ---
 
@@ -622,14 +622,6 @@ For licensing inquiries, contact: [your-email@example.com]
 - yfinance for market data
 - The open-source community
 
----
-
-## Support
-
-For issues, questions, or feature requests:
-- GitHub Issues: [github.com/yourusername/stock-read/issues]
-- Email: [support@stock-read.com]
-- Discord: [discord.gg/stock-read] (coming soon)
 
 ---
 
