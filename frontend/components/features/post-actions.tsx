@@ -24,7 +24,7 @@ export function PostActions({
   const [hasLiked, setHasLiked] = useState(initialUserHasLiked);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComments, setShowComments] = useState(defaultShowComments);
-  // commentCount state removed as it's not used
+  const [commentCount, setCommentCount] = useState(initialCommentCount);
   
   const supabase = createClient();
 
