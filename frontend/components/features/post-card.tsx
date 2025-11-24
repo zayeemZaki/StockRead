@@ -319,18 +319,26 @@ export function PostCard({
                 </div>
 
                 {/* Analyst Target */}
-                {post.target_price !== null && post.target_price !== undefined && post.raw_market_data?.price ? (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
-                    <div className={`text-xs sm:text-sm font-mono font-semibold ${
-                      post.target_price > post.raw_market_data.price 
-                        ? 'text-bullish' 
-                        : 'text-bearish'
-                    }`}>
-                      ${post.target_price.toFixed(2)}
+                {post.target_price !== null && post.target_price !== undefined && post.raw_market_data?.price ? (() => {
+                  const targetPrice = post.target_price;
+                  const currentPrice = typeof post.raw_market_data.price === 'string' 
+                    ? parseFloat(post.raw_market_data.price) 
+                    : post.raw_market_data.price;
+                  const isValidComparison = targetPrice !== null && currentPrice !== undefined && !isNaN(currentPrice);
+                  
+                  return isValidComparison ? (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
+                      <div className={`text-xs sm:text-sm font-mono font-semibold ${
+                        targetPrice > currentPrice 
+                          ? 'text-bullish' 
+                          : 'text-bearish'
+                      }`}>
+                        ${targetPrice.toFixed(2)}
+                      </div>
                     </div>
-                  </div>
-                ) : (
+                  ) : null;
+                })() : (
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
                     <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>

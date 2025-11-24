@@ -43,7 +43,9 @@ export function ProfilePostsManager({
     <div className="space-y-6">
       {posts.map((post: Post) => {
         const initialLikes = post.reactions?.length || 0;
-        const initialUserHasLiked = viewerId ? post.reactions?.some(r => r.user_id === viewerId) : false;
+        const initialUserHasLiked = Boolean(
+          viewerId && post.reactions?.some(r => r.user_id === viewerId)
+        );
         const initialCommentCount = post.comments?.length || 0;
 
         return (
