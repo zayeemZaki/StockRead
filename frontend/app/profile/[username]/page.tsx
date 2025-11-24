@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfileHeader, ProfilePostsManager, PostCard } from '@/components/features';
 import { MessageSquare } from 'lucide-react';
-import { Comment, Reaction } from '@/types';
+import { Comment, Reaction, Post } from '@/types';
 
 interface ProfilePageProps {
   params: Promise<{
@@ -218,7 +218,12 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             <TabsContent value="comments" className="mt-3 md:mt-4">
               <div className="space-y-6">
                 {userComments && userComments.length > 0 ? (
-                  userComments.map((comment: Comment & { posts?: { reactions?: Reaction[]; comments?: { id: number }[] } }) => {
+                  userComments.map((comment: Comment & { 
+                    posts?: Post & {
+                      reactions?: Reaction[];
+                      comments?: { id: number }[];
+                    }
+                  }) => {
                     const post = comment.posts;
                     
                     if (!post) {
