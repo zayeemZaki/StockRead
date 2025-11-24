@@ -34,7 +34,8 @@ import {
   Monitor, 
   Pencil,
   Home,
-  LineChart
+  LineChart,
+  Mail
 } from 'lucide-react';
 import { MobileMarketSheet } from '@/components/features/mobile-market-sheet';
 import { CreatePost } from '@/components/features'; 
@@ -227,6 +228,12 @@ export function Navbar() {
                           <Link href="/settings" className="cursor-pointer w-full flex items-center">
                             <Settings className="mr-2 h-4 w-4" />
                             <span>Settings</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/support" className="cursor-pointer w-full flex items-center">
+                            <Mail className="mr-2 h-4 w-4" />
+                            <span>Support</span>
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSub>
