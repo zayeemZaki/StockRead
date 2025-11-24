@@ -51,14 +51,22 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
             id: string;
             username: string;
             avatar_url: string;
-          };
+          } | {
+            id: string;
+            username: string;
+            avatar_url: string;
+          }[];
         }
         
-        const userProfiles = data?.map((item: FollowItem) => ({
-          id: item.profiles.id,
-          username: item.profiles.username,
-          avatar_url: item.profiles.avatar_url,
-        })) || [];
+        const userProfiles = data?.map((item) => {
+          const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+          if (!profile) return null;
+          return {
+            id: profile.id,
+            username: profile.username,
+            avatar_url: profile.avatar_url,
+          };
+        }).filter((item): item is UserProfile => item !== null) || [];
 
         setUsers(userProfiles);
       } else {
@@ -78,14 +86,22 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
             id: string;
             username: string;
             avatar_url: string;
-          };
+          } | {
+            id: string;
+            username: string;
+            avatar_url: string;
+          }[];
         }
         
-        const userProfiles = data?.map((item: FollowItem) => ({
-          id: item.profiles.id,
-          username: item.profiles.username,
-          avatar_url: item.profiles.avatar_url,
-        })) || [];
+        const userProfiles = data?.map((item) => {
+          const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+          if (!profile) return null;
+          return {
+            id: profile.id,
+            username: profile.username,
+            avatar_url: profile.avatar_url,
+          };
+        }).filter((item): item is UserProfile => item !== null) || [];
 
         setUsers(userProfiles);
       }

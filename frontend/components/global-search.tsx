@@ -200,12 +200,15 @@ export function GlobalSearch() {
     setQuery('');
     
     if (type === 'stock') {
-      router.push(`/ticker/${value.ticker}`);
+      const stockValue = value as StockValue;
+      router.push(`/ticker/${stockValue.ticker}`);
     } else if (type === 'user') {
-      router.push(`/profile/${value.username}`);
+      const userValue = value as UserValue;
+      router.push(`/profile/${userValue.username}`);
     } else if (type === 'post') {
       // Navigate to the ticker page for the post's stock
-      router.push(`/ticker/${value.ticker}`);
+      const postValue = value as PostValue;
+      router.push(`/ticker/${postValue.ticker}`);
     }
   };
 
