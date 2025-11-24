@@ -80,21 +80,81 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
     }
   }, [inView, hasMore, isLoadingMore, loadMorePosts]);
 
-  // Supabase Realtime subscription for new posts and ticker_insights updates
+  // Supabase Realtime subscription for new posts, post updates, and ticker_insights updates
   useEffect(() => {
     const supabase = createClient();
     
-      // Subscribe to new posts
-      const postsChannel = supabase
-        .channel('posts_updates')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'posts'
-        }, async (payload) => {
-          try {
-            // Fetch the new post with all relations
-            const { data: newPost } = await supabase
+    // Subscribe to new posts (INSERT events)
+    const postsInsertChannel = supabase
+      .channel('posts_inserts')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'posts'
+      }, async (payload) => {
+        try {
+          // Fetch the new post with all relations
+          const { data: newPost } = await supabase
+            .from('posts')
+            .select(`
+              *,
+              author_username,
+              author_avatar,
+              comments ( id ),
+              reactions ( user_id )
+            `)
+            .eq('id', payload.new.id)
+            .single();
+          
+          if (newPost) {
+            // Add to beginning of posts list
+            setPosts(prevPosts => [{
+              ...newPost,
+              profiles: {
+                username: newPost.author_username || 'Unknown',
+                avatar_url: newPost.author_avatar || null
+              }
+            }, ...prevPosts]);
+          }
+        } catch (error) {
+          console.error('Error fetching new post:', error);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Posts insert subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Posts insert subscription error');
+        }
+      });
+    
+    // Subscribe to post updates (UPDATE events) - for AI analysis completion
+    const postsUpdateChannel = supabase
+      .channel('posts_updates')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'posts'
+      }, async (payload) => {
+        try {
+          const updatedPost = payload.new as {
+            id: number;
+            ai_score?: number | null;
+          };
+          
+          const oldPost = payload.old as {
+            id: number;
+            ai_score?: number | null;
+          };
+          
+          // Check if AI analysis was just completed (ai_score changed from null/undefined to a value)
+          const wasNull = oldPost?.ai_score === null || oldPost?.ai_score === undefined;
+          const nowHasValue = updatedPost.ai_score !== null && updatedPost.ai_score !== undefined;
+          const aiAnalysisJustCompleted = wasNull && nowHasValue;
+          
+          // If AI analysis just completed, fetch the full post with all relations
+          if (aiAnalysisJustCompleted) {
+            const { data: fullPost } = await supabase
               .from('posts')
               .select(`
                 *,
@@ -103,24 +163,85 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
                 comments ( id ),
                 reactions ( user_id )
               `)
-              .eq('id', payload.new.id)
+              .eq('id', updatedPost.id)
               .single();
             
-            if (newPost) {
-              // Add to beginning of posts list
-              setPosts(prevPosts => [{
-                ...newPost,
-                profiles: {
-                  username: newPost.author_username || 'Unknown',
-                  avatar_url: newPost.author_avatar || null
+            if (fullPost) {
+              // Update the specific post in the feed with full data
+              setPosts(prevPosts => {
+                const postExists = prevPosts.some(p => p.id === updatedPost.id);
+                
+                if (postExists) {
+                  return prevPosts.map(post => {
+                    if (post.id === updatedPost.id) {
+                      return {
+                        ...fullPost,
+                        profiles: {
+                          username: fullPost.author_username || post.profiles?.username || 'Unknown',
+                          avatar_url: fullPost.author_avatar || post.profiles?.avatar_url || null
+                        }
+                      };
+                    }
+                    return post;
+                  });
                 }
-              }, ...prevPosts]);
+                return prevPosts;
+              });
             }
-          } catch (error) {
-            console.error('Error fetching new post:', error);
+          } else {
+            // For other updates, update fields directly from payload
+            const hasAIAnalysis = updatedPost.ai_score !== null && updatedPost.ai_score !== undefined;
+            
+            if (hasAIAnalysis) {
+              setPosts(prevPosts => {
+                const postExists = prevPosts.some(p => p.id === updatedPost.id);
+                
+                if (postExists) {
+                  return prevPosts.map(post => {
+                    if (post.id === updatedPost.id) {
+                      const payloadData = payload.new as {
+                        ai_score?: number | null;
+                        ai_summary?: string | null;
+                        ai_risk?: string | null;
+                        user_sentiment_label?: string | null;
+                        analyst_rating?: string | null;
+                        target_price?: number | null;
+                        short_float?: number | null;
+                        insider_held?: number | null;
+                        raw_market_data?: any;
+                      };
+                      
+                      return {
+                        ...post,
+                        ai_score: payloadData.ai_score ?? post.ai_score,
+                        ai_summary: payloadData.ai_summary ?? post.ai_summary,
+                        ai_risk: payloadData.ai_risk ?? post.ai_risk,
+                        user_sentiment_label: payloadData.user_sentiment_label ?? post.user_sentiment_label,
+                        analyst_rating: payloadData.analyst_rating ?? post.analyst_rating,
+                        target_price: payloadData.target_price ?? post.target_price,
+                        short_float: payloadData.short_float ?? post.short_float,
+                        insider_held: payloadData.insider_held ?? post.insider_held,
+                        raw_market_data: payloadData.raw_market_data ?? post.raw_market_data
+                      };
+                    }
+                    return post;
+                  });
+                }
+                return prevPosts;
+              });
+            }
           }
-        })
-        .subscribe();
+        } catch (error) {
+          console.error('Error updating post:', error);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Posts update subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Posts update subscription error');
+        }
+      });
     
     // Subscribe to ticker insights updates
     const insightsChannel = supabase
@@ -129,8 +250,8 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
         event: 'UPDATE',
         schema: 'public',
         table: 'ticker_insights'
-      }, (payload: { new: { ticker: string; ai_score: number; ai_signal: string; ai_risk: string } }) => {
-        const updatedRow = payload.new;
+      }, (payload) => {
+        const updatedRow = payload.new as { ticker: string; ai_score: number; ai_signal: string; ai_risk: string };
         
         // Update insights map - this applies to all posts with matching ticker
         setInsights(prev => {
@@ -143,10 +264,17 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
           return newMap;
         });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Ticker insights subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Ticker insights subscription error');
+        }
+      });
 
     return () => {
-      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(postsInsertChannel);
+      supabase.removeChannel(postsUpdateChannel);
       supabase.removeChannel(insightsChannel);
     };
   }, []);

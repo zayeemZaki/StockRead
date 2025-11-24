@@ -164,13 +164,27 @@ class ResponseBotService:
                 # Still save market data even without AI analysis
                 update_data = {
                     "raw_market_data": market_data,
-                    "analyst_rating": market_data.get('recommendationKey'),
-                    "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
-                    "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
-                    "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None,
                     "ai_score": None,
                     "ai_summary": "AI analysis unavailable - GOOGLE_API_KEY not configured"
                 }
+                
+                # Only update fields if we have valid values (don't overwrite with None)
+                target_price = safe_float(market_data.get('targetMean'))
+                if target_price is not None and target_price > 0:
+                    update_data["target_price"] = target_price
+                
+                short_float_value = safe_float(market_data.get('shortPercentOfFloat'))
+                if short_float_value is not None and short_float_value >= 0:
+                    update_data["short_float"] = short_float_value
+                
+                insider_held_value = safe_float(market_data.get('heldPercentInsiders'))
+                if insider_held_value is not None and insider_held_value >= 0:
+                    update_data["insider_held"] = insider_held_value
+                
+                # Only update analyst_rating if we have a valid value
+                recommendation_key = market_data.get('recommendationKey')
+                if recommendation_key:
+                    update_data["analyst_rating"] = recommendation_key
                 try:
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
                     logger.info(f"Saved market data: post_id={post_id}, ai_analysis=skipped")
@@ -208,17 +222,32 @@ class ResponseBotService:
 
             if insight:
                 # Update the post with AI analysis
+                # Build update data with validated values
                 update_data = {
                     "ai_score": int(round(insight['sentiment_score'])),
                     "ai_risk": insight['risk_level'],
                     "user_sentiment_label": insight.get('user_thesis', 'Neutral'),
                     "ai_summary": f"AI Analysis:\n{insight['summary']}",
-                    "raw_market_data": market_data,
-                    "analyst_rating": market_data.get('recommendationKey'),
-                    "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
-                    "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
-                    "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None
+                    "raw_market_data": market_data
                 }
+                
+                # Only update fields if we have valid values (don't overwrite with None)
+                target_price = safe_float(market_data.get('targetMean'))
+                if target_price is not None and target_price > 0:
+                    update_data["target_price"] = target_price
+                
+                short_float_value = safe_float(market_data.get('shortPercentOfFloat'))
+                if short_float_value is not None and short_float_value >= 0:
+                    update_data["short_float"] = short_float_value
+                
+                insider_held_value = safe_float(market_data.get('heldPercentInsiders'))
+                if insider_held_value is not None and insider_held_value >= 0:
+                    update_data["insider_held"] = insider_held_value
+                
+                # Only update analyst_rating if we have a valid value (don't overwrite with None)
+                recommendation_key = market_data.get('recommendationKey')
+                if recommendation_key:
+                    update_data["analyst_rating"] = recommendation_key
                 
                 try:
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
@@ -268,13 +297,27 @@ class ResponseBotService:
                 try:
                     update_data = {
                         "raw_market_data": market_data,
-                        "analyst_rating": market_data.get('recommendationKey'),
-                        "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
-                        "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
-                        "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None,
                         # Keep ai_score as null so it gets retried
                         "ai_summary": f"AI analysis pending - will retry (AI service: {'available' if self.ai_available else 'unavailable'})"
                     }
+                    
+                    # Only update fields if we have valid values (don't overwrite with None)
+                    target_price = safe_float(market_data.get('targetMean'))
+                    if target_price is not None and target_price > 0:
+                        update_data["target_price"] = target_price
+                    
+                    short_float_value = safe_float(market_data.get('shortPercentOfFloat'))
+                    if short_float_value is not None and short_float_value >= 0:
+                        update_data["short_float"] = short_float_value
+                    
+                    insider_held_value = safe_float(market_data.get('heldPercentInsiders'))
+                    if insider_held_value is not None and insider_held_value >= 0:
+                        update_data["insider_held"] = insider_held_value
+                    
+                    # Only update analyst_rating if we have a valid value
+                    recommendation_key = market_data.get('recommendationKey')
+                    if recommendation_key:
+                        update_data["analyst_rating"] = recommendation_key
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
                     logger.info(f"Saved market data for post #{post_id}, AI analysis will be retried")
                 except Exception as db_error:

@@ -12,13 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AvatarUpload } from '@/components/ui/avatar-upload';
-import { User, Loader2, CheckCircle2, Sun, Moon } from 'lucide-react';
+import { User, Loader2, CheckCircle2, Sun, Moon, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const router = useRouter();
   const supabase = createClient();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   
   // User state
   const [userId, setUserId] = useState<string | null>(null);
@@ -32,6 +34,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Prevent hydration mismatch by only rendering theme-dependent UI after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -137,24 +144,26 @@ export default function SettingsPage() {
               <div className="flex items-start justify-between mb-1 md:mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
                 {/* Mobile Theme Toggle - Top Right */}
-                <div className="md:hidden flex items-center gap-1 bg-muted rounded-full p-0.5">
-                  <Button
-                    variant={theme === 'light' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-7 w-7 rounded-full p-0"
-                    onClick={() => setTheme('light')}
-                  >
-                    <Sun className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={theme === 'dark' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-7 w-7 rounded-full p-0"
-                    onClick={() => setTheme('dark')}
-                  >
-                    <Moon className="w-4 h-4" />
-                  </Button>
-                </div>
+                {mounted && (
+                  <div className="md:hidden flex items-center gap-1 bg-muted rounded-full p-0.5">
+                    <Button
+                      variant={theme === 'light' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-7 w-7 rounded-full p-0"
+                      onClick={() => setTheme('light')}
+                    >
+                      <Sun className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={theme === 'dark' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-7 w-7 rounded-full p-0"
+                      onClick={() => setTheme('dark')}
+                    >
+                      <Moon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
               <p className="text-sm md:text-base text-muted-foreground">Manage your account preferences and settings</p>
             </div>
@@ -177,24 +186,26 @@ export default function SettingsPage() {
             <div className="flex items-start justify-between mb-1 md:mb-2">
               <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
               {/* Mobile Theme Toggle - Top Right */}
-              <div className="md:hidden flex items-center gap-1 bg-muted rounded-full p-0.5">
-                <Button
-                  variant={theme === 'light' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 w-7 rounded-full p-0"
-                  onClick={() => setTheme('light')}
-                >
-                  <Sun className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={theme === 'dark' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 w-7 rounded-full p-0"
-                  onClick={() => setTheme('dark')}
-                >
-                  <Moon className="w-4 h-4" />
-                </Button>
-              </div>
+              {mounted && (
+                <div className="md:hidden flex items-center gap-1 bg-muted rounded-full p-0.5">
+                  <Button
+                    variant={theme === 'light' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 w-7 rounded-full p-0"
+                    onClick={() => setTheme('light')}
+                  >
+                    <Sun className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={theme === 'dark' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 w-7 rounded-full p-0"
+                    onClick={() => setTheme('dark')}
+                  >
+                    <Moon className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
             <p className="text-sm md:text-base text-muted-foreground">Manage your account preferences and settings</p>
           </div>
@@ -331,6 +342,32 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Support Section - Mobile Only */}
+            <div className="md:hidden">
+              <Card className="bg-card text-card-foreground border-border">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-5 text-primary" />
+                    <CardTitle className="text-base">Support</CardTitle>
+                  </div>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Need help or have questions?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/support">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start gap-2"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span>Contact Support</span>
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </main>

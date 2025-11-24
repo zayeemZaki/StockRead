@@ -66,11 +66,35 @@ def validate_recommendation(value: Optional[str]) -> Optional[str]:
     """Validate analyst recommendation values."""
     if value is None:
         return None
-    valid_recommendations = ['buy', 'strong buy', 'hold', 'sell', 'strong sell', 'underperform', 'outperform']
-    value_lower = str(value).lower().strip()
-    if value_lower in valid_recommendations:
-        return value_lower
-    return None
+    # Normalize the value
+    value_str = str(value).lower().strip()
+    
+    # Map common variations to standard values
+    recommendation_map = {
+        'strong buy': 'strong buy',
+        'strongbuy': 'strong buy',
+        'buy': 'buy',
+        'outperform': 'outperform',
+        'hold': 'hold',
+        'neutral': 'hold',
+        'underperform': 'underperform',
+        'sell': 'sell',
+        'strong sell': 'strong sell',
+        'strongsell': 'strong sell'
+    }
+    
+    # Check exact match first
+    if value_str in recommendation_map:
+        return recommendation_map[value_str]
+    
+    # Check if it contains any of the keywords
+    for key, mapped_value in recommendation_map.items():
+        if key in value_str:
+            return mapped_value
+    
+    # If no match, return the original value (don't filter it out)
+    # This allows new recommendation formats to pass through
+    return value_str
 
 
 class MarketDataSchema(BaseModel):

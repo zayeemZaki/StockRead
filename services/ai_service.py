@@ -104,6 +104,28 @@ class AIService:
         )
         logger.info("AI service initialized with Gemini 2.5 Flash")
 
+    def _calculate_risk_from_score(self, sentiment_score: int) -> str:
+        """
+        Calculate risk level based on sentiment score.
+        Inverse relationship: High score = Low risk, Low score = High risk.
+        
+        Args:
+            sentiment_score: The AI sentiment score (0-100)
+            
+        Returns:
+            Risk level: "Low", "Medium", "High", or "Extreme"
+        """
+        if sentiment_score >= 80:
+            return "Low"
+        elif sentiment_score >= 60:
+            return "Medium"
+        elif sentiment_score >= 40:
+            return "Medium"
+        elif sentiment_score >= 20:
+            return "High"
+        else:
+            return "High"
+    
     def analyze_signal(
         self, 
         ticker: str, 
@@ -396,10 +418,18 @@ class AIService:
                 parsed_result = self._parse_llm_response(raw_text, ticker)
                 
                 if parsed_result:
+                    # Calculate risk level based on sentiment score (inverse relationship)
+                    # High score = Low risk, Low score = High risk
+                    sentiment_score = int(parsed_result.get('sentiment_score', 50))
+                    calculated_risk = self._calculate_risk_from_score(sentiment_score)
+                    
+                    # Override AI's risk level with score-based calculation for consistency
+                    parsed_result['risk_level'] = calculated_risk
+                    
                     # Validate with Pydantic schema
                     validated_result = self._validate_analysis_result(parsed_result, ticker)
                     if validated_result:
-                        logger.info(f"Successfully analyzed {ticker}")
+                        logger.info(f"Successfully analyzed {ticker} (score={sentiment_score}, risk={calculated_risk})")
                         return validated_result
                 
                 # If we get here, parsing/validation failed
@@ -496,17 +526,20 @@ class AIService:
             
             # Fallback: Try to construct valid result from partial data
             try:
+                sentiment_score = int(parsed_result.get('sentiment_score', 50))
+                calculated_risk = self._calculate_risk_from_score(sentiment_score)
+                
                 fallback_result = {
                     'user_thesis': parsed_result.get('user_thesis', 'Neutral'),
                     'summary': parsed_result.get('summary', 'Analysis unavailable'),
-                    'sentiment_score': int(parsed_result.get('sentiment_score', 50)),
-                    'risk_level': parsed_result.get('risk_level', 'Medium'),
+                    'sentiment_score': sentiment_score,
+                    'risk_level': calculated_risk,  # Use calculated risk based on score
                     'tags': parsed_result.get('tags', [])
                 }
                 
                 # Validate fallback
                 validated_fallback = AIAnalysisResult(**fallback_result)
-                logger.info(f"Used fallback validation for {ticker}")
+                logger.info(f"Used fallback validation for {ticker} (score={sentiment_score}, risk={calculated_risk})")
                 return validated_fallback.dict()
             except (ValidationError, ValueError, TypeError) as fallback_error:
                 logger.error(f"Fallback validation also failed for {ticker}: {fallback_error}")

@@ -294,12 +294,35 @@ Respond ONLY with valid JSON (no markdown):
             logger.error(f"Batch response parse error: {str(e)[:100]}", extra={'tickers': tickers}, exc_info=True)
             return {}
     
+    def _calculate_risk_from_score(self, sentiment_score: int) -> str:
+        """
+        Calculate risk level based on sentiment score.
+        Inverse relationship: High score = Low risk, Low score = High risk.
+        
+        Args:
+            sentiment_score: The AI sentiment score (0-100)
+            
+        Returns:
+            Risk level: "Low", "Medium", "High", or "Extreme"
+        """
+        if sentiment_score >= 80:
+            return "Low"
+        elif sentiment_score >= 60:
+            return "Medium"
+        elif sentiment_score >= 40:
+            return "Medium"
+        elif sentiment_score >= 20:
+            return "High"
+        else:
+            return "High"
+    
     def _save_ticker_insight(self, ticker: str, analysis: dict, market_data: dict, macro_context=None) -> bool:
         """Save individual ticker analysis to database"""
         try:
             ai_score = int(analysis.get('score', 50))
             ai_signal = self.get_signal_label(ai_score)
-            ai_risk = analysis.get('risk', 'Medium')
+            # Calculate risk from score for consistency (inverse relationship)
+            ai_risk = self._calculate_risk_from_score(ai_score)
             ai_summary = analysis.get('summary', 'No analysis available')
             
             ticker_insight = {

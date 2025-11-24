@@ -319,51 +319,68 @@ export function PostCard({
                 </div>
 
                 {/* Analyst Target */}
-                {post.target_price !== null && post.target_price !== undefined && post.raw_market_data?.price ? (() => {
+                {(() => {
                   const targetPrice = post.target_price;
-                  const currentPrice = typeof post.raw_market_data.price === 'string' 
-                    ? parseFloat(post.raw_market_data.price) 
-                    : post.raw_market_data.price;
-                  const isValidComparison = targetPrice !== null && currentPrice !== undefined && !isNaN(currentPrice);
+                  const currentPrice = post.raw_market_data?.price 
+                    ? (typeof post.raw_market_data.price === 'string' 
+                        ? parseFloat(post.raw_market_data.price) 
+                        : post.raw_market_data.price)
+                    : null;
                   
-                  return isValidComparison ? (
+                  // Validate both prices are valid numbers
+                  const isValidTarget = targetPrice !== null && targetPrice !== undefined && !isNaN(targetPrice) && targetPrice > 0;
+                  const isValidCurrent = currentPrice !== null && currentPrice !== undefined && !isNaN(currentPrice) && currentPrice > 0;
+                  
+                  if (isValidTarget && isValidCurrent) {
+                    return (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
+                        <div className={`text-xs sm:text-sm font-mono font-semibold ${
+                          targetPrice > currentPrice 
+                            ? 'text-bullish' 
+                            : 'text-bearish'
+                        }`}>
+                          ${targetPrice.toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
-                      <div className={`text-xs sm:text-sm font-mono font-semibold ${
-                        targetPrice > currentPrice 
-                          ? 'text-bullish' 
-                          : 'text-bearish'
-                      }`}>
-                        ${targetPrice.toFixed(2)}
-                      </div>
+                      <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
                     </div>
-                  ) : null;
-                })() : (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</div>
-                    <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Consensus Rating */}
                 <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Consensus</div>
-                    {post.analyst_rating ? (
-                      <Badge 
-                        variant="outline" 
-                        className={`text-[10px] px-1.5 py-0 h-5 font-semibold mt-0.5 ${
-                          post.analyst_rating.toLowerCase().includes('buy') 
-                            ? 'bg-bullish/10 text-bullish border-bullish/30' 
-                            : post.analyst_rating.toLowerCase().includes('sell')
-                            ? 'bg-bearish/10 text-bearish border-bearish/30'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {post.analyst_rating}
-                      </Badge>
-                    ) : (
-                      <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
-                    )}
+                    {(() => {
+                      // Check both analyst_rating (denormalized) and raw_market_data.recommendationKey (fallback)
+                      const consensus = post.analyst_rating || post.raw_market_data?.recommendationKey;
+                      if (consensus) {
+                        const consensusLower = consensus.toLowerCase();
+                        return (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[10px] px-1.5 py-0 h-5 font-semibold mt-0.5 ${
+                              consensusLower.includes('buy') 
+                                ? 'bg-bullish/10 text-bullish border-bullish/30' 
+                                : consensusLower.includes('sell')
+                                ? 'bg-bearish/10 text-bearish border-bearish/30'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {consensus}
+                          </Badge>
+                        );
+                      }
+                      return (
+                        <div className="text-xs sm:text-sm font-mono font-medium text-muted-foreground">-</div>
+                      );
+                    })()}
                 </div>
 
                 {/* Short Interest */}

@@ -126,6 +126,18 @@ class MarketDataService:
                 mcap_str = f"${round(mcap/1_000_000, 2)}M"
 
             # Build raw data dictionary
+            # Try multiple field names for recommendation (yfinance may use different keys)
+            recommendation = (
+                info.get('recommendationKey') or 
+                info.get('recommend') or 
+                info.get('recommendation') or
+                None
+            )
+            if recommendation:
+                logger.debug(f"Found recommendation for {ticker}: {recommendation}")
+            else:
+                logger.debug(f"No recommendation found for {ticker}. Available keys: {[k for k in info.keys() if 'recommend' in k.lower() or 'analyst' in k.lower()]}")
+            
             raw_data = {
                 "price": price,
                 "change_percent": change_percent,
@@ -135,7 +147,7 @@ class MarketDataService:
                 "peg_ratio": info.get('pegRatio', 'N/A'),
                 "short_ratio": info.get('shortRatio', 'N/A'),
                 # Institutional & Analyst Data (God Mode)
-                "recommendationKey": info.get('recommendationKey'),  # buy, hold, sell
+                "recommendationKey": recommendation,  # buy, hold, sell
                 "targetMean": info.get('targetMeanPrice'),  # Analyst average target price
                 "targetHigh": info.get('targetHighPrice'),  # Analyst high target
                 "targetLow": info.get('targetLowPrice'),  # Analyst low target
