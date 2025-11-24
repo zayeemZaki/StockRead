@@ -31,32 +31,23 @@ async def healthz():
     
     # Check Redis connection
     try:
-        redis_url = os.getenv("REDIS_URL")
+        from core.redis_utils import get_redis_url
+        redis_url = get_redis_url()
         if redis_url and redis:
-            # Validate and auto-fix Redis URL format
-            original_url = redis_url
-            if not redis_url.startswith(('redis://', 'rediss://', 'unix://')):
-                # Auto-fix common cases: if it looks like host:port, prepend redis://
-                if '://' not in redis_url and (':' in redis_url or redis_url.startswith('localhost')):
-                    redis_url = f"redis://{redis_url}"
-                    logger.debug(f"Auto-fixed Redis URL format: {original_url} -> {redis_url}")
-                else:
-                    health_status["services"]["redis"] = {
-                        "status": "error",
-                        "configured": True,
-                        "error": f"Invalid Redis URL format. Must start with redis://, rediss://, or unix://. Current format: {redis_url[:50]}..."
-                    }
-                    # Don't try to connect if format is invalid
-                    redis_url = None
-            
-            if redis_url:
-                r = redis.from_url(redis_url, socket_connect_timeout=2)
-                r.ping()
-                health_status["services"]["redis"] = {
-                    "status": "connected",
-                    "configured": True
-                }
-        elif redis_url:
+            r = redis.from_url(redis_url, socket_connect_timeout=2)
+            r.ping()
+            health_status["services"]["redis"] = {
+                "status": "connected",
+                "configured": True
+            }
+        elif os.getenv("REDIS_URL") and not redis_url:
+            # URL was provided but couldn't be normalized
+            health_status["services"]["redis"] = {
+                "status": "error",
+                "configured": True,
+                "error": "Invalid Redis URL format. Could not extract valid URL from REDIS_URL environment variable."
+            }
+        elif os.getenv("REDIS_URL"):
             health_status["services"]["redis"] = {
                 "status": "not_available",
                 "configured": True,

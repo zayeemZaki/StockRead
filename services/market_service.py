@@ -34,7 +34,12 @@ class MarketDataService:
         
         # Initialize Redis with graceful degradation
         try:
-            self.redis = redis.from_url(os.getenv("REDIS_URL"))
+            from core.redis_utils import get_redis_url
+            redis_url = get_redis_url()
+            if redis_url:
+                self.redis = redis.from_url(redis_url)
+            else:
+                raise ValueError("REDIS_URL not configured or invalid")
             self.redis.ping()  # Test connection
             self.redis_available = True
             logger.info("Redis cache initialized successfully")
