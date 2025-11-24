@@ -14,20 +14,32 @@ async def healthz():
     """
     Enhanced health check endpoint for Render/Kubernetes.
     Checks all critical services and dependencies.
+    Always returns a response, even if there are errors.
     """
-    try:
-        import redis
-    except ImportError:
-        redis = None
-    
-    from services.db_service import DatabaseService
-    
     health_status = {
         "status": "ok",
         "healthy": True,
         "timestamp": time.time(),
         "services": {}
     }
+    
+    try:
+        import redis
+    except ImportError:
+        redis = None
+    
+    try:
+        from services.db_service import DatabaseService
+    except Exception as e:
+        logger.error(f"Failed to import DatabaseService: {e}")
+        health_status["services"]["database"] = {
+            "status": "error",
+            "configured": False,
+            "error": f"Import error: {str(e)[:100]}"
+        }
+        health_status["healthy"] = False
+        health_status["status"] = "unhealthy"
+        return health_status
     
     # Check Redis connection
     try:

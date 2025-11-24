@@ -86,11 +86,12 @@ class ResponseBotService:
         
         # Initialize Redis with graceful degradation
         try:
-            from core.redis_utils import get_redis_url
+            from core.redis_utils import get_redis_url, get_redis_connection_kwargs
             redis_url = get_redis_url()
             if not redis_url:
                 raise ValueError("REDIS_URL not configured or invalid")
-            self.redis = redis.from_url(redis_url)
+            connection_kwargs = get_redis_connection_kwargs(redis_url)
+            self.redis = redis.from_url(redis_url, **connection_kwargs)
             self.redis.ping()  # Test connection
             self.redis_available = True
             logger.info("Response Bot Service initialized with Redis")
@@ -103,12 +104,20 @@ class ResponseBotService:
         """Recheck AI service availability and reinitialize if needed."""
         if not self.ai_available or not self.ai_bot:
             try:
+                logger.info("Attempting to reinitialize AI service...")
                 self.ai_bot = AIService()
                 self.ai_available = True
                 logger.info("AI service reinitialized successfully")
                 return True
+            except ValueError as ve:
+                # API key missing or invalid
+                logger.warning(f"AI service unavailable - configuration issue: {ve}")
+                self.ai_available = False
+                self.ai_bot = None
+                return False
             except Exception as e:
-                logger.debug(f"AI service still unavailable: {e}")
+                error_type = type(e).__name__
+                logger.warning(f"AI service reinitialization failed ({error_type}): {str(e)[:200]}")
                 self.ai_available = False
                 self.ai_bot = None
                 return False
@@ -173,6 +182,7 @@ class ResponseBotService:
             # Attempt AI analysis with error handling
             insight = None
             try:
+                logger.debug(f"Starting AI analysis for post #{post_id} (ticker: {ticker})")
                 insight = self.ai_bot.analyze_signal(
                     ticker, 
                     market_data,
@@ -181,9 +191,17 @@ class ResponseBotService:
                     macro_context,
                     user_post_text=user_content
                 )
+                if insight:
+                    logger.info(f"AI analysis completed for post #{post_id}: score={insight.get('sentiment_score')}, risk={insight.get('risk_level')}")
+                else:
+                    logger.warning(f"AI analysis returned None for post #{post_id} - will retry")
             except Exception as ai_error:
+                error_type = type(ai_error).__name__
                 error_msg = str(ai_error)
-                logger.error(f"AI analysis exception for post #{post_id}: {error_msg[:200]}")
+                logger.error(
+                    f"AI analysis exception for post #{post_id} (ticker: {ticker}): {error_type}: {error_msg[:200]}",
+                    exc_info=True
+                )
                 # Don't fail completely - save market data even if AI fails
                 # The post will be retried on next polling cycle
                 insight = None
@@ -242,7 +260,10 @@ class ResponseBotService:
                     return False
             else:
                 # AI analysis failed - save market data but leave ai_score as null for retry
-                logger.warning(f"AI analysis returned no insight for post #{post_id}, will retry on next cycle")
+                logger.warning(
+                    f"AI analysis returned no insight for post #{post_id} (ticker: {ticker}). "
+                    f"AI available: {self.ai_available}, will retry on next cycle"
+                )
                 # Save market data even if AI analysis failed
                 try:
                     update_data = {
@@ -252,12 +273,12 @@ class ResponseBotService:
                         "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
                         "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None,
                         # Keep ai_score as null so it gets retried
-                        "ai_summary": "AI analysis pending - will retry"
+                        "ai_summary": f"AI analysis pending - will retry (AI service: {'available' if self.ai_available else 'unavailable'})"
                     }
                     self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
                     logger.info(f"Saved market data for post #{post_id}, AI analysis will be retried")
                 except Exception as db_error:
-                    logger.error(f"Failed to save market data: {db_error}")
+                    logger.error(f"Failed to save market data for post #{post_id}: {db_error}", exc_info=True)
                 return False
         except Exception as e:
             logger.error(f"Error processing post #{post_id}: {e}", exc_info=True)
@@ -521,10 +542,11 @@ class ResponseBotService:
                 
                 # Try to reconnect
                 try:
-                    from core.redis_utils import get_redis_url
+                    from core.redis_utils import get_redis_url, get_redis_connection_kwargs
                     redis_url = get_redis_url()
                     if redis_url:
-                        self.redis = redis.from_url(redis_url)
+                        connection_kwargs = get_redis_connection_kwargs(redis_url)
+                        self.redis = redis.from_url(redis_url, **connection_kwargs)
                         self.redis.ping()
                         logger.info("Redis connection restored")
                         consecutive_errors = 0

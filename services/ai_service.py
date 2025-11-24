@@ -4,6 +4,7 @@ import json
 import os
 import re
 from typing import Dict, Any, List, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -12,6 +13,9 @@ from pydantic import BaseModel, Field, validator, ValidationError
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Timeout for AI API calls (in seconds)
+AI_API_TIMEOUT = int(os.getenv("AI_API_TIMEOUT", "60"))  # Default 60 seconds
 
 
 from core.security import sanitize_log_message
@@ -368,8 +372,25 @@ class AIService:
         max_retries = 2
         for attempt in range(max_retries):
             try:
-                response = self.model.generate_content(prompt)
-                raw_text = response.text
+                # Use ThreadPoolExecutor to add timeout to the API call
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(self.model.generate_content, prompt)
+                    try:
+                        response = future.result(timeout=AI_API_TIMEOUT)
+                        raw_text = response.text
+                    except FutureTimeoutError:
+                        logger.error(f"AI API call timeout for {ticker} after {AI_API_TIMEOUT}s (attempt {attempt + 1}/{max_retries})")
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            return None
+                    except Exception as api_error:
+                        error_msg = sanitize_log_message(str(api_error))
+                        logger.warning(f"AI API call error for {ticker} (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            return None
                 
                 # Attempt to parse JSON with fallback strategies
                 parsed_result = self._parse_llm_response(raw_text, ticker)
@@ -500,9 +521,16 @@ class AIService:
             Raw text response from Gemini (expected to be JSON) or None on failure.
         """
         try:
-            response = self.model.generate_content(prompt)
-            logger.info("Batch prompt analyzed successfully")
-            return response.text
+            # Use ThreadPoolExecutor to add timeout to the API call
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(self.model.generate_content, prompt)
+                try:
+                    response = future.result(timeout=AI_API_TIMEOUT)
+                    logger.info("Batch prompt analyzed successfully")
+                    return response.text
+                except FutureTimeoutError:
+                    logger.error(f"Batch analysis timeout after {AI_API_TIMEOUT}s")
+                    return None
         except Exception as e:
             error_msg = sanitize_log_message(str(e))
             logger.error(f"Batch analysis failed: {error_msg}")
