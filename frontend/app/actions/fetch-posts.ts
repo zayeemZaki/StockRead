@@ -94,10 +94,11 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
     };
   } catch (error: unknown) {
     console.error('Unexpected error fetching posts:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch posts';
     return {
       posts: [],
       hasMore: false,
-      error: error?.message || 'Failed to fetch posts'
+      error: errorMessage
     };
   }
 }
