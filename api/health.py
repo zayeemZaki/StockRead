@@ -34,12 +34,47 @@ async def healthz():
         from core.redis_utils import get_redis_url
         redis_url = get_redis_url()
         if redis_url and redis:
-            r = redis.from_url(redis_url, socket_connect_timeout=2)
-            r.ping()
-            health_status["services"]["redis"] = {
-                "status": "connected",
-                "configured": True
-            }
+            try:
+                r = redis.from_url(redis_url, socket_connect_timeout=2, socket_keepalive=True)
+                r.ping()
+                health_status["services"]["redis"] = {
+                    "status": "connected",
+                    "configured": True
+                }
+            except redis.ConnectionError as conn_err:
+                # Try to get more specific error information
+                error_msg = str(conn_err)
+                if "Connection refused" in error_msg or "ECONNREFUSED" in error_msg:
+                    health_status["services"]["redis"] = {
+                        "status": "disconnected",
+                        "configured": True,
+                        "error": "Connection refused - Redis server may be down or unreachable"
+                    }
+                elif "timeout" in error_msg.lower():
+                    health_status["services"]["redis"] = {
+                        "status": "disconnected",
+                        "configured": True,
+                        "error": "Connection timeout - Redis server may be slow or unreachable"
+                    }
+                else:
+                    health_status["services"]["redis"] = {
+                        "status": "disconnected",
+                        "configured": True,
+                        "error": f"Connection failed: {error_msg[:100]}"
+                    }
+            except redis.AuthenticationError as auth_err:
+                health_status["services"]["redis"] = {
+                    "status": "error",
+                    "configured": True,
+                    "error": "Authentication failed - check Redis password/credentials"
+                }
+            except Exception as redis_err:
+                error_type = type(redis_err).__name__
+                health_status["services"]["redis"] = {
+                    "status": "error",
+                    "configured": True,
+                    "error": f"{error_type}: {str(redis_err)[:100]}"
+                }
         elif os.getenv("REDIS_URL") and not redis_url:
             # URL was provided but couldn't be normalized
             health_status["services"]["redis"] = {
@@ -47,7 +82,7 @@ async def healthz():
                 "configured": True,
                 "error": "Invalid Redis URL format. Could not extract valid URL from REDIS_URL environment variable."
             }
-        elif os.getenv("REDIS_URL"):
+        elif os.getenv("REDIS_URL") and not redis:
             health_status["services"]["redis"] = {
                 "status": "not_available",
                 "configured": True,
@@ -60,18 +95,11 @@ async def healthz():
             }
     except Exception as e:
         error_type = type(e).__name__
-        if redis and isinstance(e, redis.ConnectionError):
-            health_status["services"]["redis"] = {
-                "status": "disconnected",
-                "configured": True,
-                "error": "Connection failed"
-            }
-        else:
-            health_status["services"]["redis"] = {
-                "status": "error",
-                "configured": bool(os.getenv("REDIS_URL")),
-                "error": f"{error_type}: {str(e)[:100]}"
-            }
+        health_status["services"]["redis"] = {
+            "status": "error",
+            "configured": bool(os.getenv("REDIS_URL")),
+            "error": f"{error_type}: {str(e)[:100]}"
+        }
         # Redis is optional (fallback to DB polling), so don't mark as unhealthy
     
     # Check AI service configuration (without exposing key)

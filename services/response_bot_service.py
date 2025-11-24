@@ -99,6 +99,21 @@ class ResponseBotService:
             self.redis = None
             self.redis_available = False
     
+    def _ensure_ai_available(self):
+        """Recheck AI service availability and reinitialize if needed."""
+        if not self.ai_available or not self.ai_bot:
+            try:
+                self.ai_bot = AIService()
+                self.ai_available = True
+                logger.info("AI service reinitialized successfully")
+                return True
+            except Exception as e:
+                logger.debug(f"AI service still unavailable: {e}")
+                self.ai_available = False
+                self.ai_bot = None
+                return False
+        return True
+    
     def process_single_post(self, post_id: int, ticker: str, user_content: str):
         """Process a single post with AI analysis."""
         try:
@@ -111,16 +126,28 @@ class ResponseBotService:
             # Get macro context
             macro_context = self.data_engine.get_macro_context()
             
-            # Get market data
-            market_data = self.data_engine.get_price_context(ticker)
+            # Get market data with retry logic
+            max_market_data_retries = 3
+            market_data = None
+            for retry in range(max_market_data_retries):
+                market_data = self.data_engine.get_price_context(ticker)
+                if market_data:
+                    break
+                if retry < max_market_data_retries - 1:
+                    logger.warning(f"Market data fetch failed for {ticker}, retry {retry + 1}/{max_market_data_retries}")
+                    time.sleep(2 ** retry)  # Exponential backoff
             
             if not market_data:
-                logger.warning(f"Invalid ticker {ticker}, marking as error")
-                self.db.supabase.table("posts").update({"ai_score": -1, "ai_summary": "Invalid Ticker"}).eq("id", post_id).execute()
+                logger.warning(f"Invalid ticker {ticker} after {max_market_data_retries} retries, marking as error")
+                # Use -1 to mark as invalid, but allow retry in future (will be picked up by polling)
+                self.db.supabase.table("posts").update({"ai_score": -1, "ai_summary": "Invalid Ticker - will retry"}).eq("id", post_id).execute()
                 return False
 
             technicals = self.data_engine.get_technical_analysis(ticker)
             news = self.data_engine.get_latest_news(ticker)
+            
+            # Recheck AI service availability before analysis
+            self._ensure_ai_available()
             
             # Check if AI service is available
             if not self.ai_available or not self.ai_bot:
@@ -143,14 +170,23 @@ class ResponseBotService:
                     logger.error(f"Database update failed: {db_error}")
                     return False
             
-            insight = self.ai_bot.analyze_signal(
-                ticker, 
-                market_data,
-                news,
-                technicals,
-                macro_context,
-                user_post_text=user_content
-            )
+            # Attempt AI analysis with error handling
+            insight = None
+            try:
+                insight = self.ai_bot.analyze_signal(
+                    ticker, 
+                    market_data,
+                    news,
+                    technicals,
+                    macro_context,
+                    user_post_text=user_content
+                )
+            except Exception as ai_error:
+                error_msg = str(ai_error)
+                logger.error(f"AI analysis exception for post #{post_id}: {error_msg[:200]}")
+                # Don't fail completely - save market data even if AI fails
+                # The post will be retried on next polling cycle
+                insight = None
 
             if insight:
                 # Update the post with AI analysis
@@ -205,7 +241,23 @@ class ResponseBotService:
                     logger.error(f"Database update failed: {db_error}")
                     return False
             else:
-                logger.warning(f"AI analysis returned no insight for post #{post_id}")
+                # AI analysis failed - save market data but leave ai_score as null for retry
+                logger.warning(f"AI analysis returned no insight for post #{post_id}, will retry on next cycle")
+                # Save market data even if AI analysis failed
+                try:
+                    update_data = {
+                        "raw_market_data": market_data,
+                        "analyst_rating": market_data.get('recommendationKey'),
+                        "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
+                        "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
+                        "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None,
+                        # Keep ai_score as null so it gets retried
+                        "ai_summary": "AI analysis pending - will retry"
+                    }
+                    self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
+                    logger.info(f"Saved market data for post #{post_id}, AI analysis will be retried")
+                except Exception as db_error:
+                    logger.error(f"Failed to save market data: {db_error}")
                 return False
         except Exception as e:
             logger.error(f"Error processing post #{post_id}: {e}", exc_info=True)
@@ -267,31 +319,17 @@ class ResponseBotService:
         
         while True:
             try:
-                # Find posts without AI data (ai_score is null or 0, or raw_market_data is null)
-                # Query posts where ai_score is null OR ai_score is 0 OR raw_market_data is null
+                # Find posts without AI data (ai_score is null, 0, or -1)
+                # Include -1 to retry posts that were marked as "Invalid Ticker" due to temporary failures
+                # Query posts where ai_score is null OR ai_score is 0 OR ai_score is -1
                 response = self.db.supabase.table("posts")\
-                    .select("id, ticker, content, ai_score, raw_market_data, user_id")\
-                    .is_("ai_score", "null")\
+                    .select("id, ticker, content, ai_score, raw_market_data, user_id, created_at")\
+                    .or_("ai_score.is.null,ai_score.eq.0,ai_score.eq.-1")\
                     .order("created_at", desc=False)\
-                    .limit(10)\
+                    .limit(20)\
                     .execute()
                 
-                # Also get posts with ai_score = 0
-                response2 = self.db.supabase.table("posts")\
-                    .select("id, ticker, content, ai_score, raw_market_data, user_id")\
-                    .eq("ai_score", 0)\
-                    .order("created_at", desc=False)\
-                    .limit(10)\
-                    .execute()
-                
-                # Combine results and deduplicate
-                all_posts = (response.data or []) + (response2.data or [])
-                seen_ids = set()
-                posts = []
-                for post in all_posts:
-                    if post['id'] not in seen_ids:
-                        seen_ids.add(post['id'])
-                        posts.append(post)
+                posts = response.data or []
                 
                 # Reset error counter on successful query
                 consecutive_errors = 0
@@ -322,9 +360,27 @@ class ResponseBotService:
                     ticker = post['ticker']
                     user_content = post['content']
                     
-                    # Skip if already processed
+                    # Skip if already successfully processed (ai_score > 0 and has market data)
+                    # But retry if ai_score is -1 (invalid ticker) or 0/null (failed analysis)
                     if post.get('ai_score') and post.get('ai_score') > 0 and post.get('raw_market_data'):
                         continue
+                    
+                    # For posts with ai_score = -1, check if enough time has passed before retry
+                    # This prevents infinite retry loops for truly invalid tickers
+                    if post.get('ai_score') == -1:
+                        # Check if post was created more than 1 hour ago (give it time for market data to become available)
+                        post_created = post.get('created_at')
+                        if post_created:
+                            try:
+                                from datetime import datetime, timezone
+                                created_dt = datetime.fromisoformat(post_created.replace('Z', '+00:00'))
+                                hours_since_creation = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
+                                if hours_since_creation < 1:
+                                    logger.debug(f"Skipping post #{post_id} (ai_score=-1) - too recent, will retry later")
+                                    continue
+                            except Exception:
+                                # If date parsing fails, proceed with retry
+                                pass
                     
                     try:
                         logger.info(f"Processing post #{post_id} for {ticker} (from database)")
