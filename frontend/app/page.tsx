@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { Navbar } from '@/components/navbar';
 import { CreatePost, MarketSidebar } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
+import Link from 'next/link';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -49,12 +50,12 @@ export default async function Home() {
             >
               Try Again
             </button>
-            <a
+            <Link
               href="/"
               className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm"
             >
               Go Home
-            </a>
+            </Link>
           </div>
         </div>
       </div>

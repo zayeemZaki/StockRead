@@ -37,7 +37,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const slugifiedSearch = slugifyUsername(decodedUsername);
   
   // First attempt: Case-insensitive exact match
-  let { data: profiles } = await supabase
+  const { data: profiles } = await supabase
     .from('profiles')
     .select('id, username, avatar_url')
     .ilike('username', decodedUsername)
