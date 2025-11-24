@@ -19,6 +19,7 @@ export function CompanyLogo({ ticker, domain, size = 'xl' }: CompanyLogoProps) {
   const logoUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={logoUrl}
       alt={`${ticker} logo`}

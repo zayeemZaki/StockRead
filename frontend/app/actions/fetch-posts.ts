@@ -92,7 +92,7 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
       posts,
       hasMore
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error fetching posts:', error);
     return {
       posts: [],

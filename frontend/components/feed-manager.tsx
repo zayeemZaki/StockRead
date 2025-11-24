@@ -68,7 +68,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
       } else {
         setHasMore(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Unexpected error loading more posts:', error);
       setHasMore(false);
     } finally {
@@ -93,7 +93,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
         event: 'UPDATE',
         schema: 'public',
         table: 'ticker_insights'
-      }, (payload) => {
+      }, (payload: { new: { ticker: string; ai_score: number; ai_signal: string; ai_risk: string } }) => {
         const updatedRow = payload.new;
         console.log('Realtime update received for ticker:', updatedRow.ticker, updatedRow);
         
@@ -112,6 +112,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDeletePost = (postId: number) => {
@@ -263,7 +264,7 @@ export function FeedManager({ initialPosts, viewerId, followingIds = [], isLoadi
         ) : (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <p className="text-muted-foreground text-lg">
-              No posts found for {activeFilter === 'all' ? 'this feed' : `"${activeFilter}"`} filter
+              No posts found for {activeFilter === 'all' ? 'this feed' : `${activeFilter}`} filter
             </p>
             <p className="text-muted-foreground/70 text-sm mt-2">
               Try a different filter or create a new post

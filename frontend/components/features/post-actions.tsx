@@ -24,7 +24,7 @@ export function PostActions({
   const [hasLiked, setHasLiked] = useState(initialUserHasLiked);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComments, setShowComments] = useState(defaultShowComments);
-  const [commentCount, setCommentCount] = useState(initialCommentCount);
+  // commentCount state removed as it's not used
   
   const supabase = createClient();
 
@@ -46,6 +46,7 @@ export function PostActions({
     };
     
     checkUserLike();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   const handleLikeClick = async () => {
@@ -86,8 +87,9 @@ export function PostActions({
 
         if (error) throw error;
       }
-    } catch (error: any) {
-      console.error('Error updating like:', error?.message || error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error updating like:', errorMessage);
       setHasLiked(previousHasLiked);
       setLikes(previousLikes);
     } finally {

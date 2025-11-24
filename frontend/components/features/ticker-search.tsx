@@ -69,6 +69,7 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
               onClick={() => handleSelect(stock.symbol, stock.name)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition text-left border-b border-border last:border-b-0">
               {!hideImages.has(stock.domain) && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`https://icons.duckduckgo.com/ip3/${stock.domain}.ico`}
                   alt=""
@@ -90,7 +91,7 @@ export function TickerSearch({ onSelect }: TickerSearchProps) {
 
       {isOpen && query.trim() && filteredStocks.length === 0 && (
         <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-lg shadow-xl px-4 py-3 text-muted-foreground text-sm">
-          No stocks found matching "{query}"
+          No stocks found matching &quot;{query}&quot;
         </div>
       )}
     </div>

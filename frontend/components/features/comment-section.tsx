@@ -44,15 +44,17 @@ export function CommentSection({ postId }: CommentSectionProps) {
   const [commentText, setCommentText] = useState('');
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  interface CurrentUser {
+    id: string;
+    profile?: {
+      username?: string;
+      avatar_url?: string;
+    };
+  }
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
   
   const supabase = createClient();
-
-  useEffect(() => {
-    fetchComments();
-    getCurrentUser();
-  }, [postId]);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -63,7 +65,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
         .eq('id', user.id)
         .single();
       
-      setCurrentUser({ ...user, profile });
+      setCurrentUser({
+        id: user.id,
+        profile: profile || undefined
+      });
     }
   };
 
@@ -74,21 +79,28 @@ export function CommentSection({ postId }: CommentSectionProps) {
         .from('comments')
         .select('*, profiles(username, avatar_url)')
         .eq('post_id', postId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      const formattedComments = (data || []).map(comment => ({
+
+      const formattedComments = (data || []).map((comment) => ({
         ...comment,
         profiles: Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles
       }));
       setComments(formattedComments);
-    } catch (error: any) {
-      console.error('Error fetching comments:', error?.message || error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error fetching comments:', errorMessage);
     } finally {
       setIsLoadingComments(false);
     }
   };
+
+  useEffect(() => {
+    fetchComments();
+    getCurrentUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,8 +147,9 @@ export function CommentSection({ postId }: CommentSectionProps) {
       setComments(prev => 
         prev.map(c => c.id === optimisticComment.id ? formattedData : c)
       );
-    } catch (error: any) {
-      console.error('Error posting comment:', error?.message || error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error posting comment:', errorMessage);
       fetchComments();
     } finally {
       setIsSubmittingComment(false);
@@ -146,7 +159,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && commentText.trim()) {
       e.preventDefault();
-      handleCommentSubmit(e as any);
+      handleCommentSubmit(e as unknown as React.FormEvent);
     }
   };
 

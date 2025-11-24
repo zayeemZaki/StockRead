@@ -40,16 +40,30 @@ const MOCK_FALLBACK = [
   { symbol: 'QCOM', price: 175.40, change: -4.20, changePercent: -2.34 },
 ];
 
+interface YahooQuote {
+  symbol: string;
+  regularMarketPrice?: number;
+  regularMarketChange?: number;
+  regularMarketChangePercent?: number;
+}
+
+interface StockData {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
 export async function GET() {
   try {
     // Fetch quotes from Yahoo Finance
-    const quotes: any = await yahooFinance.quote(TOP_TICKERS);
+    const quotes = await yahooFinance.quote(TOP_TICKERS) as YahooQuote | YahooQuote[];
 
     // Map to simple format
-    const stockData: Record<string, any> = {};
+    const stockData: Record<string, StockData> = {};
 
     if (Array.isArray(quotes)) {
-      quotes.forEach((quote: any) => {
+      quotes.forEach((quote: YahooQuote) => {
         if (quote && quote.symbol) {
           stockData[quote.symbol] = {
             symbol: quote.symbol,
@@ -71,11 +85,11 @@ export async function GET() {
 
     return NextResponse.json(stockData);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Yahoo Finance Error:', error);
 
     // Return mock data as fallback
-    const fallbackData: Record<string, any> = {};
+    const fallbackData: Record<string, StockData> = {};
     MOCK_FALLBACK.forEach(stock => {
       fallbackData[stock.symbol] = stock;
     });

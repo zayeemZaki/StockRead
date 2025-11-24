@@ -27,7 +27,7 @@ export function CreatePost({ trigger }: CreatePostProps) {
   const [ticker, setTicker] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const router = useRouter();
   
   const supabase = createClient();
@@ -38,6 +38,7 @@ export function CreatePost({ trigger }: CreatePostProps) {
       setUser(user);
     };
     getUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,9 +65,10 @@ export function CreatePost({ trigger }: CreatePostProps) {
         toast.error(result.error || 'Failed to create post');
         // Don't close dialog on error so user can retry
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Post creation error:', err);
-      toast.error('Error posting: ' + (err.message || 'Unknown error'));
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Error posting: ' + errorMessage);
       // Don't close dialog on error so user can retry
     } finally {
       setLoading(false);

@@ -53,13 +53,26 @@ export async function getChartData(ticker: string, range: string): Promise<Chart
     }
 
     // Fetch chart data with specified period1 and interval
+    interface YahooChartQuote {
+      date: Date;
+      close?: number;
+      open?: number;
+      high?: number;
+      low?: number;
+      volume?: number;
+    }
+    
+    interface YahooChartResult {
+      quotes?: YahooChartQuote[];
+    }
+    
     const chartResult = await yahooFinance.chart(ticker, {
       period1: config.period1,
-      interval: config.interval as any
-    }) as any;
+      interval: config.interval
+    }) as YahooChartResult;
 
     // Format chart data for Recharts
-    const chartData: ChartDataPoint[] = (chartResult.quotes || []).map((quote: any) => ({
+    const chartData: ChartDataPoint[] = (chartResult.quotes || []).map((quote: YahooChartQuote) => ({
       date: range === '1D' || range === '5D' 
         ? quote.date.toISOString() // Full timestamp for intraday
         : quote.date.toISOString().split('T')[0], // Just date for daily+
@@ -71,8 +84,9 @@ export async function getChartData(ticker: string, range: string): Promise<Chart
     }));
 
     return chartData;
-  } catch (error: any) {
-    console.error(`Error fetching chart data for ${ticker} (${range}):`, error?.message || error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error fetching chart data for ${ticker} (${range}):`, errorMessage);
     return null;
   }
 }

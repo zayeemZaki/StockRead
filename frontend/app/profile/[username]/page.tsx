@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
-import { Post } from '@/types';
 import { Navbar } from '@/components/navbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfileHeader, ProfilePostsManager, PostCard } from '@/components/features';
-import { Heart, TrendingUp, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import { Comment, Reaction } from '@/types';
 
 interface ProfilePageProps {
   params: Promise<{
@@ -218,7 +218,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             <TabsContent value="comments" className="mt-3 md:mt-4">
               <div className="space-y-6">
                 {userComments && userComments.length > 0 ? (
-                  userComments.map((comment: any) => {
+                  userComments.map((comment: Comment & { posts?: { reactions?: Reaction[]; comments?: { id: number }[] } }) => {
                     const post = comment.posts;
                     
                     if (!post) {
@@ -227,7 +227,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
                     // Calculate initial props for the post card
                     const initialLikes = post.reactions?.length || 0;
-                    const initialUserHasLiked = viewer ? post.reactions?.some((r: any) => r.user_id === viewer.id) : false;
+                    const initialUserHasLiked = viewer ? post.reactions?.some((r: Reaction) => r.user_id === viewer.id) : false;
                     const initialCommentCount = post.comments?.length || 0;
 
                     return (

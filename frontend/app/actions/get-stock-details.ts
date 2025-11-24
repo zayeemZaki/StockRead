@@ -38,18 +38,54 @@ export async function getStockDetails(ticker: string): Promise<StockDetails | nu
     const yahooFinance = new YahooFinance();
 
     // Fetch chart data (1 year of daily data)
+    interface YahooChartQuote {
+      date: Date;
+      close?: number;
+      open?: number;
+      high?: number;
+      low?: number;
+      volume?: number;
+    }
+    
+    interface YahooChartResult {
+      quotes?: YahooChartQuote[];
+    }
+    
+    interface YahooSummaryProfile {
+      sector?: string;
+      industry?: string;
+      website?: string;
+      fullTimeEmployees?: number;
+      city?: string;
+      state?: string;
+      country?: string;
+      longBusinessSummary?: string;
+    }
+    
+    interface YahooPrice {
+      longName?: string;
+      shortName?: string;
+      regularMarketPrice?: number;
+      marketCap?: number;
+    }
+    
+    interface YahooQuoteSummary {
+      summaryProfile?: YahooSummaryProfile;
+      price?: YahooPrice;
+    }
+    
     const chartResult = await yahooFinance.chart(ticker, {
       period1: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
       interval: '1d'
-    }) as any;
+    }) as YahooChartResult;
 
     // Fetch profile and price data
     const summaryResult = await yahooFinance.quoteSummary(ticker, {
       modules: ['summaryProfile', 'price']
-    }) as any;
+    }) as YahooQuoteSummary;
 
     // Format chart data
-    const chart: StockChart[] = (chartResult.quotes || []).map((quote: any) => ({
+    const chart: StockChart[] = (chartResult.quotes || []).map((quote: YahooChartQuote) => ({
       date: quote.date.toISOString().split('T')[0],
       close: quote.close || 0,
       open: quote.open || 0,
@@ -82,9 +118,10 @@ export async function getStockDetails(ticker: string): Promise<StockDetails | nu
       chart,
       profile
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Suppress console warnings and errors for cleaner logs
-    console.error(`Error fetching stock details for ${ticker}:`, error?.message || error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error fetching stock details for ${ticker}:`, errorMessage);
     return null;
   }
 }

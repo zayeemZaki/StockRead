@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StockLogo } from '@/components/ui/stock-logo';
 import { PostActions } from './post-actions';
-import { Bot, TrendingUp, AlertTriangle, Trash2, MoreVertical } from 'lucide-react';
+import { Bot, Trash2, MoreVertical } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -91,7 +91,7 @@ export function PostCard({
     }
   };
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -160,7 +160,7 @@ export function PostCard({
     price
   })) || [];
 
-  const formatMetricValue = (value: any) => {
+  const formatMetricValue = (value: unknown) => {
     if (value === null || value === undefined || value === 'N/A') return 'N/A';
     if (typeof value === 'number') return value.toFixed(2);
     return value.toString();

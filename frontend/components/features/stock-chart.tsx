@@ -1,6 +1,6 @@
 'use client';
 
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface StockChartProps {
   data: Array<{ date: string; close: number }>;
@@ -8,8 +8,14 @@ interface StockChartProps {
   range?: string;
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: { date: string; close: number } }>;
+  range?: string;
+}
+
 // Custom Tooltip Component
-function CustomTooltip({ active, payload, range }: any) {
+function CustomTooltip({ active, payload, range }: CustomTooltipProps) {
   if (!active || !payload || !payload.length) {
     return null;
   }
@@ -82,7 +88,7 @@ function CustomTooltip({ active, payload, range }: any) {
   );
 }
 
-export function StockChart({ data, previousClose, range = '1Y' }: StockChartProps) {
+export function StockChart({ data, range = '1Y' }: StockChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="h-[400px] w-full flex items-center justify-center bg-muted/30 rounded-lg border border-border">
@@ -98,8 +104,6 @@ export function StockChart({ data, previousClose, range = '1Y' }: StockChartProp
 
   // Color scheme
   const strokeColor = isUp ? '#10b981' : '#ef4444'; // Green or Red
-  const fillColorStart = isUp ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
-  const fillColorEnd = isUp ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)';
 
   // Calculate optimal tick count based on data length and range
   const getTickCount = () => {

@@ -45,8 +45,9 @@ export default function LoginPage() {
         toast.success('Welcome back! Redirecting...');
         router.push('/'); // Redirect to Home on success
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred during authentication');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during authentication';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
