@@ -2,14 +2,76 @@
 import logging
 import json
 import os
+import re
 from typing import Dict, Any, List, Optional
 
 import google.generativeai as genai
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, validator, ValidationError
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+from core.security import sanitize_log_message
+
+
+class AIAnalysisResult(BaseModel):
+    """Pydantic model for validating AI analysis output."""
+    user_thesis: str = Field(..., description="User sentiment: Bullish, Bearish, or Neutral")
+    summary: str = Field(..., description="2-3 sentence analysis summary")
+    sentiment_score: int = Field(..., ge=0, le=100, description="Objective market score 0-100")
+    risk_level: str = Field(..., description="Risk level: Low, Medium, High, or Extreme")
+    tags: List[str] = Field(default_factory=list, description="Analysis tags")
+    
+    @validator('user_thesis')
+    def validate_user_thesis(cls, v):
+        """Validate user_thesis is one of the expected values."""
+        valid_values = ['Bullish', 'Bearish', 'Neutral']
+        v_normalized = v.strip().capitalize()
+        if v_normalized not in valid_values:
+            logger.warning(f"Invalid user_thesis value: {v}, defaulting to Neutral")
+            return 'Neutral'
+        return v_normalized
+    
+    @validator('risk_level')
+    def validate_risk_level(cls, v):
+        """Validate risk_level is one of the expected values."""
+        valid_values = ['Low', 'Medium', 'High', 'Extreme']
+        v_normalized = v.strip().capitalize()
+        if v_normalized not in valid_values:
+            logger.warning(f"Invalid risk_level value: {v}, defaulting to Medium")
+            return 'Medium'
+        return v_normalized
+    
+    @validator('sentiment_score')
+    def validate_sentiment_score(cls, v):
+        """Ensure sentiment_score is within valid range."""
+        if isinstance(v, float):
+            v = int(round(v))
+        if not isinstance(v, int):
+            try:
+                v = int(float(v))
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid sentiment_score type: {type(v)}, defaulting to 50")
+                return 50
+        return max(0, min(100, v))  # Clamp to 0-100
+    
+    @validator('tags')
+    def validate_tags(cls, v):
+        """Ensure tags is a list."""
+        if not isinstance(v, list):
+            if isinstance(v, str):
+                # Try to parse comma-separated string
+                v = [tag.strip() for tag in v.split(',')]
+            else:
+                logger.warning(f"Invalid tags type: {type(v)}, defaulting to empty list")
+                return []
+        return [str(tag) for tag in v if tag]  # Convert all to strings and filter empty
+    
+    class Config:
+        extra = 'ignore'  # Ignore extra fields from LLM
 
 
 class AIService:
@@ -21,7 +83,16 @@ class AIService:
         if not api_key:
             raise ValueError("GOOGLE_API_KEY not found in environment variables. Required for AI analysis.")
         
-        genai.configure(api_key=api_key)
+        # Store masked version for logging (never log actual key)
+        self._api_key_masked = f"{api_key[:8]}***MASKED***" if len(api_key) > 8 else "***MASKED***"
+        
+        try:
+            genai.configure(api_key=api_key)
+        except Exception as e:
+            # Sanitize error message before logging
+            error_msg = sanitize_log_message(str(e))
+            logger.error(f"Failed to configure Gemini API: {error_msg}")
+            raise ValueError(f"Failed to configure Gemini API: {error_msg}")
         
         self.model = genai.GenerativeModel(
             model_name='gemini-2.5-flash',
@@ -294,14 +365,131 @@ class AIService:
         - Tags: Include sector, signal type, and key characteristic (e.g., "Technology", "Strong Buy", "High Growth")
         """
 
-        try:
-            response = self.model.generate_content(prompt)
-            result = json.loads(response.text)
-            logger.info(f"Successfully analyzed {ticker}")
-            return result
-        except Exception as e:
-            logger.error(f"AI analysis failed for {ticker}: {str(e)}")
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                response = self.model.generate_content(prompt)
+                raw_text = response.text
+                
+                # Attempt to parse JSON with fallback strategies
+                parsed_result = self._parse_llm_response(raw_text, ticker)
+                
+                if parsed_result:
+                    # Validate with Pydantic schema
+                    validated_result = self._validate_analysis_result(parsed_result, ticker)
+                    if validated_result:
+                        logger.info(f"Successfully analyzed {ticker}")
+                        return validated_result
+                
+                # If we get here, parsing/validation failed
+                if attempt < max_retries - 1:
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} for {ticker} after parse failure")
+                    continue
+                else:
+                    logger.error(f"AI analysis failed for {ticker} after {max_retries} attempts: Invalid response format")
+                    return None
+                    
+            except Exception as e:
+                error_msg = sanitize_log_message(str(e))
+                if attempt < max_retries - 1:
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} for {ticker} after error: {error_msg}")
+                    continue
+                else:
+                    logger.error(f"AI analysis failed for {ticker} after {max_retries} attempts: {error_msg}")
+                    return None
+        
+        return None
+    
+    def _parse_llm_response(self, raw_text: str, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Parse LLM response with multiple fallback strategies.
+        
+        Args:
+            raw_text: Raw text response from LLM
+            ticker: Ticker symbol for logging
+            
+        Returns:
+            Parsed dictionary or None if all strategies fail
+        """
+        if not raw_text or not raw_text.strip():
+            logger.error(f"Empty response from LLM for {ticker}")
             return None
+        
+        # Strategy 1: Direct JSON parse
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError:
+            pass
+        
+        # Strategy 2: Extract JSON from markdown code blocks
+        try:
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_text, re.DOTALL | re.IGNORECASE)
+            if json_match:
+                return json.loads(json_match.group(1))
+        except (json.JSONDecodeError, AttributeError):
+            pass
+        
+        # Strategy 3: Find JSON object in text (look for { ... })
+        try:
+            # Find the first { and last } that might contain JSON
+            start_idx = raw_text.find('{')
+            end_idx = raw_text.rfind('}')
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_str = raw_text[start_idx:end_idx + 1]
+                return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+        
+        # Strategy 4: Try to fix common JSON issues
+        try:
+            # Remove trailing commas, fix quotes, etc.
+            cleaned = raw_text.strip()
+            # Remove markdown formatting
+            cleaned = re.sub(r'```json\s*', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'```\s*', '', cleaned)
+            # Try parsing again
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+        
+        logger.error(f"Failed to parse LLM response for {ticker}. Raw text (first 500 chars): {raw_text[:500]}")
+        return None
+    
+    def _validate_analysis_result(self, parsed_result: Dict[str, Any], ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Validate parsed result against Pydantic schema with fallback.
+        
+        Args:
+            parsed_result: Parsed dictionary from LLM
+            ticker: Ticker symbol for logging
+            
+        Returns:
+            Validated dictionary or None if validation fails
+        """
+        try:
+            # Validate with Pydantic
+            validated = AIAnalysisResult(**parsed_result)
+            return validated.dict()
+        except ValidationError as e:
+            logger.warning(f"Validation error for {ticker}: {e.errors()}")
+            
+            # Fallback: Try to construct valid result from partial data
+            try:
+                fallback_result = {
+                    'user_thesis': parsed_result.get('user_thesis', 'Neutral'),
+                    'summary': parsed_result.get('summary', 'Analysis unavailable'),
+                    'sentiment_score': int(parsed_result.get('sentiment_score', 50)),
+                    'risk_level': parsed_result.get('risk_level', 'Medium'),
+                    'tags': parsed_result.get('tags', [])
+                }
+                
+                # Validate fallback
+                validated_fallback = AIAnalysisResult(**fallback_result)
+                logger.info(f"Used fallback validation for {ticker}")
+                return validated_fallback.dict()
+            except (ValidationError, ValueError, TypeError) as fallback_error:
+                logger.error(f"Fallback validation also failed for {ticker}: {fallback_error}")
+                return None
 
     def analyze_with_gemini(self, prompt: str) -> Optional[str]:
         """Generic prompt-based analysis used by batch insight population.
@@ -316,7 +504,8 @@ class AIService:
             logger.info("Batch prompt analyzed successfully")
             return response.text
         except Exception as e:
-            logger.error(f"Batch analysis failed: {e}")
+            error_msg = sanitize_log_message(str(e))
+            logger.error(f"Batch analysis failed: {error_msg}")
             return None
 
 

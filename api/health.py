@@ -66,13 +66,14 @@ async def healthz():
             }
         # Redis is optional (fallback to DB polling), so don't mark as unhealthy
     
-    # Check AI service configuration
+    # Check AI service configuration (without exposing key)
     try:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key:
             health_status["services"]["ai"] = {
                 "status": "configured",
-                "api_key_present": True
+                "api_key_present": True,
+                "api_key_length": len(api_key)  # Only log length, never the key itself
             }
         else:
             health_status["services"]["ai"] = {
@@ -81,9 +82,12 @@ async def healthz():
             }
             # AI is optional, so don't mark as unhealthy
     except Exception as e:
+        # Sanitize error message to prevent key leakage
+        from core.security import sanitize_log_message
+        error_msg = sanitize_log_message(str(e))[:100]
         health_status["services"]["ai"] = {
             "status": "error",
-            "error": str(e)[:100]
+            "error": error_msg
         }
     
     # Check database connection
