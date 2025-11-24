@@ -48,8 +48,6 @@ export function AvatarUpload({ uid, url, onUpload, compact = false }: AvatarUplo
       const fileExt = file.name.split('.').pop();
       const filePath = `${uid}/${Date.now()}.${fileExt}`;
 
-      console.log('📤 Uploading avatar:', filePath);
-
       // Upload file to Supabase Storage - preserves original resolution
       // File is uploaded as-is without any resizing or compression
       const { error: uploadError } = await supabase.storage
@@ -71,7 +69,6 @@ export function AvatarUpload({ uid, url, onUpload, compact = false }: AvatarUplo
         .getPublicUrl(filePath);
 
       const publicUrl = data.publicUrl;
-      console.log('✅ Avatar uploaded successfully:', publicUrl);
 
       // Notify parent component
       onUpload(publicUrl);

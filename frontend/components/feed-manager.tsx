@@ -30,9 +30,6 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
   const [insights, setInsights] = useState(new Map(
     Object.entries(liveInsightsMap || {}).map(([ticker, data]) => [ticker, data])
   ));
-  
-  console.log('FeedManager: liveInsightsMap received:', liveInsightsMap ? Object.keys(liveInsightsMap).length : 0, 'keys');
-  console.log('FeedManager: AAPL in map?', liveInsightsMap?.['AAPL']);
 
   // Update posts when initialPosts changes
   useEffect(() => {
@@ -95,7 +92,6 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
         table: 'ticker_insights'
       }, (payload: { new: { ticker: string; ai_score: number; ai_signal: string; ai_risk: string } }) => {
         const updatedRow = payload.new;
-        console.log('Realtime update received for ticker:', updatedRow.ticker, updatedRow);
         
         setInsights(prev => {
           const newMap = new Map(prev);
@@ -115,12 +111,9 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
   }, []);
 
   const handleDeletePost = (postId: number) => {
-    console.log('Deleting post:', postId);
     // Optimistically remove the post from the UI
     setPosts(prevPosts => {
-      const newPosts = prevPosts.filter(p => p.id !== postId);
-      console.log('Posts after delete:', newPosts.length, 'from', prevPosts.length);
-      return newPosts;
+      return prevPosts.filter(p => p.id !== postId);
     });
   };
 

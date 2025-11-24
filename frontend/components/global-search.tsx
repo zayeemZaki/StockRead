@@ -313,6 +313,7 @@ export function GlobalSearch() {
                 >
                   <FileText className="w-5 h-5 text-accent-foreground mr-2 mt-0.5" />
                   {logoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={logoUrl}
                       alt={post.ticker}

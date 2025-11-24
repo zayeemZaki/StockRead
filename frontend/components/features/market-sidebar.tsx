@@ -19,7 +19,7 @@ function formatNewsDate(dateString: string): string {
       return 'Today';
     }
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch (error) {
+  } catch {
     return 'Today';
   }
 }
@@ -143,16 +143,13 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('🔌 Unsubscribing from realtime updates');
       supabase.removeChannel(priceChannel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate market summary
-  const totalStocks = POPULAR_STOCKS.length;
   const loadedStocks = Object.keys(stockPrices).length;
-  const gainers = Object.values(stockPrices).filter(s => s.change_percent > 0).length;
-  const losers = Object.values(stockPrices).filter(s => s.change_percent < 0).length;
 
   // Show skeleton while both news and prices are loading
   const isLoading = isLoadingNews && isLoadingPrices;

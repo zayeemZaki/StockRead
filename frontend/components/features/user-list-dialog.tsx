@@ -46,7 +46,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           throw error;
         }
 
-        interface FollowItem {
+        const userProfiles = data?.map((item: {
           profiles: {
             id: string;
             username: string;
@@ -56,9 +56,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
             username: string;
             avatar_url: string;
           }[];
-        }
-        
-        const userProfiles = data?.map((item) => {
+        }) => {
           const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
           if (!profile) return null;
           return {
@@ -81,7 +79,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
           throw error;
         }
 
-        interface FollowItem {
+        const userProfiles = data?.map((item: {
           profiles: {
             id: string;
             username: string;
@@ -91,9 +89,7 @@ export function UserListDialog({ userId, type, open, onOpenChange }: UserListDia
             username: string;
             avatar_url: string;
           }[];
-        }
-        
-        const userProfiles = data?.map((item) => {
+        }) => {
           const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
           if (!profile) return null;
           return {

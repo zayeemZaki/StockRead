@@ -1,12 +1,9 @@
-import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Post } from '@/types';
 import { Navbar } from '@/components/navbar';
 import { InteractiveChart, ExpandableAbout } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
 import { getStockDetails } from '@/app/actions/get-stock-details';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StockLogo } from '@/components/ui/stock-logo';
 import { CompanyLogo } from '@/components/ui/company-logo';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, Globe, MapPin, TrendingUp, AlertCircle, MessageSquare } from 'lucide-react';

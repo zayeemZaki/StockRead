@@ -43,7 +43,7 @@ function formatDate(dateString: string): string {
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInHours < 48) return 'Yesterday';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch (error) {
+  } catch {
     return 'Today';
   }
 }
@@ -125,6 +125,7 @@ export default function MarketsPage() {
     return () => {
       supabase.removeChannel(priceChannel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isPositive = (change: number) => change >= 0;

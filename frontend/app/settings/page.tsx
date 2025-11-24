@@ -70,6 +70,7 @@ export default function SettingsPage() {
     };
 
     fetchUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const handleAvatarUpload = async (newUrl: string) => {
