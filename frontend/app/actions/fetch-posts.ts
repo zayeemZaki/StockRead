@@ -39,7 +39,8 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
         .from('posts')
         .select(`
           *,
-          profiles ( username, avatar_url ),
+          author_username,
+          author_avatar,
           comments ( id ),
           reactions ( user_id )
         `)
@@ -73,7 +74,13 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
         }
       })) as Post[];
     } else {
-      posts = (rawPosts || []) as Post[];
+      posts = (rawPosts || []).map(post => ({
+        ...post,
+        profiles: {
+          username: post.author_username,
+          avatar_url: post.author_avatar
+        }
+      })) as Post[];
     }
     
     // Check if there are more posts

@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase-server';
-import { Post } from '@/types';
 import { Navbar } from '@/components/navbar';
 import { CreatePost, MarketSidebar } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
@@ -24,7 +23,8 @@ export default async function Home() {
     .from('posts')
     .select(`
       *,
-      profiles ( username, avatar_url ),
+      author_username,
+      author_avatar,
       comments ( id ),
       reactions ( user_id )
     `)
@@ -34,6 +34,15 @@ export default async function Home() {
   if (error) {
     return <div className="p-10 text-red-500">Error loading feed: {error.message}</div>;
   }
+
+  // Map posts to include profiles object for compatibility
+  const mappedPosts = (posts || []).map(post => ({
+    ...post,
+    profiles: {
+      username: post.author_username,
+      avatar_url: post.author_avatar
+    }
+  }));
 
   // Fetch global AI insights from ticker_insights table
   const { data: tickerInsights } = await supabase
@@ -57,7 +66,7 @@ export default async function Home() {
 
   // Posts are already sorted by newest first from the query
   // (Friend-first sorting removed for infinite scroll pagination simplicity)
-  const sortedPosts = posts || [];
+  const sortedPosts = mappedPosts || [];
 
   return (
     <>
