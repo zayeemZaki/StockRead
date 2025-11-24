@@ -75,8 +75,17 @@ class GlobalAnalyst:
     
     def __init__(self):
         self.data_engine = MarketDataService()
-        self.ai_service = AIService()
         self.db = DatabaseService()
+        
+        # Initialize AI service with graceful degradation
+        try:
+            self.ai_service = AIService()
+            self.ai_available = True
+            logger.info("Global Analyst: AI service initialized successfully")
+        except Exception as e:
+            logger.warning(f"Global Analyst: AI service initialization failed: {e}. AI analysis will be disabled.")
+            self.ai_service = None
+            self.ai_available = False
         
         # Set up Eastern timezone for market hours
         self.eastern = pytz.timezone('US/Eastern')
@@ -185,6 +194,11 @@ class GlobalAnalyst:
         
         if not batch_data:
             print(f"   ❌ No market data for batch")
+            return {}
+        
+        # Check if AI service is available
+        if not self.ai_available or not self.ai_service:
+            logger.warning("AI service not available. Skipping batch analysis.")
             return {}
         
         # Create batch prompt
@@ -350,6 +364,11 @@ Respond ONLY with valid JSON (no markdown):
                 # 2. Fetch technicals and news
                 technicals = self.data_engine.get_technical_analysis(ticker)
                 news = self.data_engine.get_latest_news(ticker)
+                
+                # Check if AI service is available
+                if not self.ai_available or not self.ai_service:
+                    logger.warning(f"AI service not available. Skipping analysis for {ticker}")
+                    return False
                 
                 # 3. Run AI Analysis with retry handling
                 # CRITICAL: Pass user_post_text=None for objective market analysis

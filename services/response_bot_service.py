@@ -73,7 +73,16 @@ class ResponseBotService:
     def __init__(self):
         self.db = DatabaseService()
         self.data_engine = MarketDataService()
-        self.ai_bot = AIService()
+        
+        # Initialize AI service with graceful degradation
+        try:
+            self.ai_bot = AIService()
+            self.ai_available = True
+            logger.info("AI service initialized successfully")
+        except Exception as e:
+            logger.warning(f"AI service initialization failed: {e}. AI analysis will be disabled.")
+            self.ai_bot = None
+            self.ai_available = False
         
         # Initialize Redis with graceful degradation
         try:
@@ -85,7 +94,7 @@ class ResponseBotService:
             self.redis_available = True
             logger.info("Response Bot Service initialized with Redis")
         except Exception as e:
-            logger.warning(f"Redis connection failed: {e}. AI analysis will be disabled.")
+            logger.warning(f"Redis connection failed: {e}. AI analysis will use database polling fallback.")
             self.redis = None
             self.redis_available = False
     
@@ -111,6 +120,27 @@ class ResponseBotService:
 
             technicals = self.data_engine.get_technical_analysis(ticker)
             news = self.data_engine.get_latest_news(ticker)
+            
+            # Check if AI service is available
+            if not self.ai_available or not self.ai_bot:
+                logger.warning(f"AI service not available. Skipping AI analysis for post #{post_id}")
+                # Still save market data even without AI analysis
+                update_data = {
+                    "raw_market_data": market_data,
+                    "analyst_rating": market_data.get('recommendationKey'),
+                    "target_price": float(market_data.get('targetMean')) if market_data.get('targetMean') else None,
+                    "short_float": float(market_data.get('shortPercentOfFloat')) if market_data.get('shortPercentOfFloat') else None,
+                    "insider_held": float(market_data.get('heldPercentInsiders')) if market_data.get('heldPercentInsiders') else None,
+                    "ai_score": None,
+                    "ai_summary": "AI analysis unavailable - GOOGLE_API_KEY not configured"
+                }
+                try:
+                    self.db.supabase.table("posts").update(update_data).eq("id", post_id).execute()
+                    logger.info(f"✅ Saved market data for post #{post_id} (AI analysis skipped)")
+                    return True
+                except Exception as db_error:
+                    logger.error(f"Database update failed: {db_error}")
+                    return False
             
             insight = self.ai_bot.analyze_signal(
                 ticker, 
