@@ -108,54 +108,8 @@ Stock Read bridges the gap between social investment communities and professiona
 
 Stock Read follows a **hybrid architecture** combining server-side rendering (SSR) with client-side interactivity and background AI services.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND (Next.js)                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   SSR Pages  │  │ Server Actions│ │ Client Comps │     │
-│  │  (RSC + SSG) │  │  (Mutations)  │ │ (Real-time)  │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-│         │                  │                  │             │
-└─────────┼──────────────────┼──────────────────┼─────────────┘
-          │                  │                  │
-          ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│              SUPABASE (Database + Auth + Storage)           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  PostgreSQL  │  │   Auth + RLS │ │   Real-time  │     │
-│  │   (Posts,    │  │   (Secure)   │ │  (WebSocket) │     │
-│  │   Profiles)  │  │              │ │              │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-          ▲                                     ▲
-          │                                     │
-┌─────────┴─────────────────────────────────────┴─────────────┐
-│           BACKEND SERVICES (Python + FastAPI)               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Global     │  │  Market Maker│ │   News       │     │
-│  │  Analyst     │  │   Service    │ │  Service     │     │
-│  │  (AI Batch)  │  │ (Real-time)  │ │ (Headlines)  │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Response    │  │ Maintenance  │ │    Redis     │     │
-│  │    Bot       │  │   Service    │ │   (Cache)    │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-          ▲
-          │
-┌─────────┴─────────────────────────────────────┐
-│      EXTERNAL APIs                            │
-│  ┌──────────────┐  ┌──────────────┐          │
-│  │   yfinance   │  │ Google News  │          │
-│  │ (Market Data)│  │  (Articles)  │          │
-│  └──────────────┘  └──────────────┘          │
-│  ┌──────────────┐  ┌──────────────┐          │
-│  │ Google Gemini│  │  StockTwits  │          │
-│  │  (AI Model)  │  │  (Sentiment) │          │
-│  └──────────────┘  └──────────────┘          │
-└───────────────────────────────────────────────┘
-```
+![Stock Read Platform](./frontend/public/architecture.jpeg)
+
 
 ### Background Services
 
