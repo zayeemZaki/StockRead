@@ -104,7 +104,7 @@ export function ProfilePostsManager({
                         target_price?: number | null;
                         short_float?: number | null;
                         insider_held?: number | null;
-                        raw_market_data?: any;
+                        raw_market_data?: Post['raw_market_data'];
                       };
                       
                       return {
