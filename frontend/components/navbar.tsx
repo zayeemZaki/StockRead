@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import type React from 'react';
 import { useTheme } from 'next-themes';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase-client';
@@ -102,6 +103,41 @@ export function Navbar() {
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
+  };
+
+  const handleProfileClick = async (e: React.MouseEvent) => {
+    if (!user) {
+      // User not logged in, let the link navigate to login
+      return;
+    }
+
+    if (!profile) {
+      // User is logged in but profile not loaded yet, try to fetch it
+      e.preventDefault();
+      e.stopPropagation();
+      
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileData) {
+          setProfile(profileData);
+          // Navigate after profile is loaded
+          router.push(`/profile/${getProfileSlug(profileData.username)}`);
+        } else {
+          // Profile doesn't exist, redirect to settings to create one
+          router.push('/settings');
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        // On error, still try to navigate to settings
+        router.push('/settings');
+      }
+    }
+    // If profile exists, let the link handle navigation normally
   };
 
   const getInitials = (username: string) => {
@@ -311,8 +347,9 @@ export function Navbar() {
 
           {/* Profile Tab */}
           <Link 
-            href={profile ? `/profile/${getProfileSlug(profile.username)}` : '/login'} 
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${profile && isActive(`/profile/${getProfileSlug(profile.username)}`) ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            href={user && profile ? `/profile/${getProfileSlug(profile.username)}` : user ? '/settings' : '/login'} 
+            onClick={handleProfileClick}
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${user && profile && isActive(`/profile/${getProfileSlug(profile.username)}`) ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
           >
             <UserIcon className="w-5 h-5" />
             <span className="text-[10px] font-medium">Profile</span>

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AvatarUpload } from '@/components/ui/avatar-upload';
-import { User, Loader2, CheckCircle2, Sun, Moon, Mail } from 'lucide-react';
+import { User, Loader2, CheckCircle2, Sun, Moon, Mail, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -132,6 +132,12 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
   };
 
   if (loading) {
@@ -343,8 +349,8 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Support Section - Mobile Only */}
-            <div className="md:hidden">
+            {/* Support & Account Section - Mobile Only */}
+            <div className="md:hidden space-y-4">
               <Card className="bg-card text-card-foreground border-border">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -365,6 +371,25 @@ export default function SettingsPage() {
                       <span>Contact Support</span>
                     </Button>
                   </Link>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card text-card-foreground border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Account</CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Manage your account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Log Out</span>
+                  </Button>
                 </CardContent>
               </Card>
             </div>

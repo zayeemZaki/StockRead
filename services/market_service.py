@@ -11,6 +11,7 @@ from pydantic import ValidationError
 import yfinance as yf
 import requests
 import pandas as pd
+import re
 from GoogleNews import GoogleNews
 
 from core.market_schema import MarketDataSchema
@@ -395,9 +396,111 @@ class MarketDataService:
             logger.error(f"Failed to fetch technical analysis for {ticker}: {str(e)}")
             return None
         
-    def get_latest_news(self, ticker: str, limit: int = 3) -> List[Dict[str, str]]:
+    def _clean_url(self, url: str) -> str:
         """
-        Fetch latest news headlines from Google News.
+        Clean URL by removing Google tracking parameters and fixing malformed URLs.
+        
+        Args:
+            url: URL that may contain tracking parameters
+            
+        Returns:
+            Cleaned URL without tracking parameters
+        """
+        if not url or not isinstance(url, str):
+            return url or ''
+        
+        try:
+            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+            
+            # Fix URLs that have & instead of ? for query params (malformed)
+            if '&ved=' in url and '?' not in url.split('://')[1].split('/')[0]:
+                # Find where query params start (first & after domain)
+                parts = url.split('://', 1)
+                if len(parts) == 2:
+                    scheme = parts[0]
+                    rest = parts[1]
+                    # Find first & that's likely a query param
+                    if '&' in rest:
+                        path_part, query_part = rest.split('&', 1)
+                        url = f"{scheme}://{path_part}?{query_part}"
+            
+            parsed = urlparse(url)
+            
+            # Remove Google tracking parameters
+            query_params = parse_qs(parsed.query, keep_blank_values=True)
+            params_to_remove = ['ved', 'usg', 'utm_source', 'utm_medium', 'utm_campaign', 
+                               'utm_term', 'utm_content', 'gclid', 'fbclid', '_ga']
+            
+            cleaned_params = {k: v for k, v in query_params.items() 
+                            if k.lower() not in params_to_remove}
+            
+            # Reconstruct URL without tracking parameters
+            if cleaned_params:
+                new_query = urlencode(cleaned_params, doseq=True)
+            else:
+                new_query = ''
+            
+            cleaned_url = urlunparse((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                new_query,
+                ''  # Remove fragment
+            ))
+            
+            return cleaned_url
+            
+        except Exception as e:
+            logger.debug(f"Failed to clean URL {url[:50]}...: {str(e)}")
+            return url
+    
+    def _resolve_google_news_link(self, url: str) -> str:
+        """
+        Resolve Google News redirect links to actual article URLs.
+        
+        Args:
+            url: Google News redirect URL
+            
+        Returns:
+            Resolved direct URL or original URL if resolution fails
+        """
+        if not url or not isinstance(url, str):
+            return url or ''
+        
+        # First clean the URL to remove tracking parameters
+        url = self._clean_url(url)
+        
+        # Check if it's a Google News redirect
+        if 'news.google.com' in url or 'google.com/url' in url:
+            try:
+                from urllib.parse import urlparse, parse_qs
+                
+                response = requests.head(url, allow_redirects=True, timeout=5, headers=self.headers)
+                resolved_url = response.url
+                
+                # Clean the resolved URL
+                resolved_url = self._clean_url(resolved_url)
+                
+                # If still a Google redirect, try to extract from query params
+                if 'google.com' in resolved_url and 'url=' in resolved_url:
+                    parsed = urlparse(resolved_url)
+                    query_params = parse_qs(parsed.query)
+                    if 'url' in query_params:
+                        resolved_url = query_params['url'][0]
+                        resolved_url = self._clean_url(resolved_url)
+                
+                # Validate the resolved URL
+                if resolved_url and resolved_url != url and 'http' in resolved_url:
+                    return resolved_url
+            except Exception as e:
+                logger.debug(f"Failed to resolve Google News link: {str(e)}")
+        
+        return url
+    
+    def get_latest_news(self, ticker: str, limit: int = 5) -> List[Dict[str, str]]:
+        """
+        Fetch latest news headlines from multiple sources with resolved links.
         
         Args:
             ticker: Stock ticker symbol
@@ -406,28 +509,88 @@ class MarketDataService:
         Returns:
             List of news dictionaries with source, title, link, and date
         """
+        news_items = []
+        seen_titles = set()
+        
+        # Try Yahoo Finance first (better links, more reliable)
         try:
-            googlenews = GoogleNews(lang='en', region='US', period='7d')
-            googlenews.search(f"{ticker} stock")
+            stock = yf.Ticker(ticker)
+            yahoo_news = stock.news
             
-            results = googlenews.result()
-            
-            news_items = []
-            for item in results[:limit]:
-                news_items.append({
-                    "source": item['media'],
-                    "title": item['title'],
-                    "link": item['link'],
-                    "date": item['date']
-                })
-            
-            googlenews.clear()
-            
-            return news_items
-
+            if yahoo_news:
+                for article in yahoo_news[:limit]:
+                    title = article.get('title', '').strip()
+                    if not title or title.lower() in seen_titles:
+                        continue
+                    
+                    seen_titles.add(title.lower())
+                    
+                    # Yahoo Finance news has direct links
+                    link = article.get('link', '')
+                    if not link or 'yahoo.com' not in link:
+                        # Sometimes link is in uuid format, construct proper URL
+                        if 'uuid' in article:
+                            link = f"https://finance.yahoo.com/news/{article.get('uuid', '')}"
+                    
+                    # Clean URL to remove any tracking parameters
+                    link = self._clean_url(link or '')
+                    
+                    # Parse date
+                    pub_date = article.get('providerPublishTime', 0)
+                    if pub_date:
+                        try:
+                            date_str = datetime.fromtimestamp(pub_date).strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    news_items.append({
+                        "source": article.get('publisher', 'Yahoo Finance'),
+                        "title": title,
+                        "link": link or '',
+                        "date": date_str
+                    })
+                    
+                    if len(news_items) >= limit:
+                        break
         except Exception as e:
-            logger.error(f"Failed to fetch news for {ticker}: {str(e)}")
-            return []
+            logger.warning(f"Failed to fetch Yahoo Finance news for {ticker}: {str(e)}")
+        
+        # Fallback to Google News if we need more articles
+        if len(news_items) < limit:
+            try:
+                googlenews = GoogleNews(lang='en', region='US', period='7d')
+                googlenews.search(f"{ticker} stock")
+                
+                results = googlenews.result()
+                
+                for item in results:
+                    title = item.get('title', '').strip()
+                    if not title or title.lower() in seen_titles:
+                        continue
+                    
+                    seen_titles.add(title.lower())
+                    
+                    # Resolve Google News redirect links and clean tracking parameters
+                    resolved_link = self._resolve_google_news_link(item.get('link', ''))
+                    cleaned_link = self._clean_url(resolved_link)
+                    
+                    news_items.append({
+                        "source": item.get('media', 'Unknown'),
+                        "title": title,
+                        "link": cleaned_link,
+                        "date": item.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                    })
+                    
+                    if len(news_items) >= limit:
+                        break
+                
+                googlenews.clear()
+            except Exception as e:
+                logger.warning(f"Failed to fetch Google News for {ticker}: {str(e)}")
+        
+        return news_items[:limit]
 
 
 def main():

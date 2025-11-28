@@ -28,11 +28,13 @@ export function CreatePost({ trigger }: CreatePostProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   
   const supabase = createClient();
 
   useEffect(() => {
+    setMounted(true);
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -95,8 +97,10 @@ export function CreatePost({ trigger }: CreatePostProps) {
       e.stopPropagation();
       toast.error('Please log in to post!');
       router.push('/login');
+      return;
     }
-    // If user exists, DialogTrigger handles the open state automatically
+    // If user exists, open the dialog
+    setOpen(true);
   };
 
   const handleFakeInputClick = () => {
@@ -108,18 +112,27 @@ export function CreatePost({ trigger }: CreatePostProps) {
     setOpen(true);
   };
 
+  // For custom triggers, only render Dialog after mount to avoid hydration mismatch
+  if (trigger && !mounted) {
+    return (
+      <span onClick={handleAuthCheck} className="cursor-pointer">
+        {trigger}
+      </span>
+    );
+  }
+
   return (
     // Only add bottom margin if we are using the default view (not the navbar trigger)
     <div className={trigger ? "" : "mb-8"}>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          {trigger ? (
-            // If a custom trigger is provided (e.g., Pencil Icon in Navbar), use it
-            <span onClick={handleAuthCheck} className="cursor-pointer">
-              {trigger}
-            </span>
-          ) : (
-            // Default view: "Drop a signal..." fake input
+        {trigger ? (
+          // If a custom trigger is provided (e.g., Pencil Icon in Navbar), handle click manually
+          <span onClick={handleAuthCheck} className="cursor-pointer">
+            {trigger}
+          </span>
+        ) : (
+          // Default view: "Drop a signal..." fake input
+          <DialogTrigger asChild>
             <button
               onClick={handleFakeInputClick}
               className="w-full bg-muted border border-border rounded-full px-4 py-3 text-muted-foreground cursor-pointer hover:bg-muted/80 transition flex items-center gap-3"
@@ -127,8 +140,8 @@ export function CreatePost({ trigger }: CreatePostProps) {
               <Pencil className="w-5 h-5" />
               <span>Drop a signal...</span>
             </button>
-          )}
-        </DialogTrigger>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-[525px] w-[95%] rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-primary">Drop a Signal</DialogTitle>
