@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase-server';
 import { Navbar } from '@/components/navbar';
 import { InteractiveChart, ExpandableAbout } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
@@ -45,6 +46,8 @@ export default async function TickerPage({ params }: TickerPageProps) {
 
   const { chart, profile } = details;
 
+  const supabase = await createClient();
+  
   // Get viewer ID for post interactions
   const { data: { user: viewer } } = await supabase.auth.getUser();
 
