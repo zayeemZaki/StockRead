@@ -149,7 +149,7 @@ export default function MarketsPage() {
           <div className="lg:hidden">
             {/* Page Header - Mobile */}
             <div className="px-4 pt-4 pb-3">
-              <h1 className="text-2xl font-bold mb-1">Markets</h1>
+              <h1 className="text-xl font-bold mb-1">Markets</h1>
               <p className="text-xs text-muted-foreground">Live market data and latest financial news</p>
             </div>
 

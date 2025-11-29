@@ -334,13 +334,13 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Filter Pills Container */}
       {/* - flex-nowrap: Forces single row
          - overflow-x-auto: Enables horizontal scrolling
          - whitespace-nowrap: Prevents content inside from wrapping 
       */}
-      <div className="flex flex-nowrap overflow-x-auto whitespace-nowrap gap-2 p-4 bg-card rounded-xl border border-border">
+      <div className="flex flex-nowrap overflow-x-auto whitespace-nowrap gap-2 p-3 bg-card rounded-xl border border-border" data-tutorial="feed-filters">
         {filterButtons.map((filter) => (
           <button
             key={filter.id}
@@ -375,7 +375,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
       </div>
 
       {/* Posts Feed */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {isLoading ? (
           <FeedSkeleton count={5} />
         ) : filteredPosts.length > 0 ? (

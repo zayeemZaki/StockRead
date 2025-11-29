@@ -163,13 +163,13 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
   }
 
   return (
-    <Card className={`${mobile ? 'h-full' : 'h-[calc(100vh-100px)]'} flex flex-col ${mobile ? '' : 'sticky top-24'} overflow-hidden`}>
+    <Card className={`${mobile ? 'h-full' : 'h-[calc(100vh-100px)]'} flex flex-col ${mobile ? '' : 'sticky top-24'} overflow-hidden`} data-tutorial="market-sidebar">
       {/* Top Section: Stocks (70%) */}
       <div className="h-[70%] flex flex-col min-h-0">
         {/* Fixed Header */}
         <div className="p-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
             Market Watch
           </h2>
         </div>
@@ -260,15 +260,15 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
       {/* Bottom Section: News (30%) */}
       <div className="h-[30%] flex flex-col min-h-0">
         {/* Fixed Header */}
-        <div className="p-4 border-b border-border shrink-0">
-          <h2 className="text-sm font-bold flex items-center gap-2 text-foreground">
-            <Newspaper className="w-4 h-4 text-primary" />
+        <div className="p-3 border-b border-border shrink-0">
+          <h2 className="text-xs font-bold flex items-center gap-2 text-foreground">
+            <Newspaper className="w-3.5 h-3.5 text-primary" />
             Trending News
           </h2>
         </div>
 
         {/* Scrollable News List */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-3 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           {isLoadingNews ? (
             <div className="text-xs text-muted-foreground text-center py-4">
               Loading news...
@@ -305,7 +305,7 @@ export function MarketSidebar({ mobile = false }: MarketSidebarProps) {
         </div>
 
         {/* Footer - Pinned at Bottom */}
-        <div className="p-4 border-t border-border shrink-0 bg-card">
+        <div className="p-3 border-t border-border shrink-0 bg-card">
           <Link 
             href="/markets" 
             className="text-xs text-primary hover:underline font-medium flex items-center justify-center gap-1"

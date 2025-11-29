@@ -135,16 +135,17 @@ export function CreatePost({ trigger }: CreatePostProps) {
           <DialogTrigger asChild>
             <button
               onClick={handleFakeInputClick}
-              className="w-full bg-muted border border-border rounded-full px-4 py-3 text-muted-foreground cursor-pointer hover:bg-muted/80 transition flex items-center gap-3"
+              className="w-full bg-muted border border-border rounded-full px-3 py-2 text-muted-foreground cursor-pointer hover:bg-muted/80 transition flex items-center gap-2"
+              data-tutorial="create-post"
             >
-              <Pencil className="w-5 h-5" />
+              <Pencil className="w-4 h-4" />
               <span>Drop a signal...</span>
             </button>
           </DialogTrigger>
         )}
         <DialogContent className="sm:max-w-[525px] w-[95%] rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-primary">Drop a Signal</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-primary">Drop a Signal</DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Share your market thesis with the community
             </DialogDescription>

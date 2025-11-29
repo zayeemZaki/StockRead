@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
 import { Navbar } from '@/components/navbar';
 import { InteractiveChart, ExpandableAbout } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
@@ -140,12 +140,12 @@ export default async function TickerPage({ params }: TickerPageProps) {
 
           {/* DESKTOP HEADER */}
           <Card className="hidden md:block bg-card border border-border shadow-lg mx-4 sm:mx-6 lg:mx-8 mt-6">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 {/* LEFT COLUMN: Stock Summary Sidebar */}
-                <div className="lg:col-span-3 space-y-6">
+                <div className="lg:col-span-3 space-y-4">
                   {/* Logo Section */}
-                  <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="flex flex-col items-center text-center space-y-3">
                     {(() => {
                       const stockInfo = POPULAR_STOCKS.find(s => s.symbol === upperSymbol);
                       const domain = stockInfo?.domain || profile.website;
@@ -153,20 +153,20 @@ export default async function TickerPage({ params }: TickerPageProps) {
                     })()}
                     
                     <div>
-                      <h1 className="text-2xl font-bold">{upperSymbol}</h1>
-                      <p className="text-lg text-muted-foreground mt-1">
+                      <h1 className="text-xl font-bold">{upperSymbol}</h1>
+                      <p className="text-base text-muted-foreground mt-1">
                         {profile.longName}
                       </p>
                     </div>
                   </div>
 
                   {/* Price Section */}
-                  <div className="text-center space-y-3 py-6 border-y border-border">
-                    <div className="text-3xl font-bold">
+                  <div className="text-center space-y-2 py-4 border-y border-border">
+                    <div className="text-2xl font-bold">
                       ${profile.currentPrice?.toFixed(2) || 'N/A'}
                     </div>
-                    <div className={`text-xl font-semibold flex items-center justify-center gap-2 ${priceChangeColor}`}>
-                      <TrendingUp className="w-5 h-5" />
+                    <div className={`text-lg font-semibold flex items-center justify-center gap-2 ${priceChangeColor}`}>
+                      <TrendingUp className="w-4 h-4" />
                       {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
                       <span className="text-sm text-muted-foreground">(1Y)</span>
                     </div>

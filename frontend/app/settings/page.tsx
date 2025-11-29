@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AvatarUpload } from '@/components/ui/avatar-upload';
-import { User, Loader2, CheckCircle2, Sun, Moon, Mail, LogOut } from 'lucide-react';
+import { User, Loader2, CheckCircle2, Sun, Moon, Mail, LogOut, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -138,6 +138,11 @@ export default function SettingsPage() {
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
+  };
+
+  const handleRestartTutorial = () => {
+    localStorage.removeItem('stockread_tutorial_completed');
+    toast.success('Tutorial will appear on your next page visit');
   };
 
   if (loading) {
@@ -381,7 +386,15 @@ export default function SettingsPage() {
                     Manage your account
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2"
+                    onClick={handleRestartTutorial}
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    <span>Restart Tutorial</span>
+                  </Button>
                   <Button 
                     variant="outline" 
                     className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"

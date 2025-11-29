@@ -23,3 +23,4 @@ redis>=5.0.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 pydantic>=2.0.0
+annotated-types>=0.6.0

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { GlobalSearch } from "@/components/global-search";
+import { OnboardingTutorial } from "@/components/features";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <GlobalSearch />
+          <OnboardingTutorial />
           <Toaster theme="dark" position="bottom-right" />
           {children}
         </ThemeProvider>

@@ -92,7 +92,7 @@ export default async function Home() {
       {/* Feed Layout with bottom padding for mobile tab bar */}
       <main className="min-h-screen bg-background text-foreground pt-16 pb-24 md:pb-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
             <div className="md:col-span-8">
               {/* Desktop Create Post */}
               <div className="hidden md:block">

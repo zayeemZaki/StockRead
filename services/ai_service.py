@@ -1,5 +1,4 @@
 """AI service for stock analysis using Google's Gemini model."""
-import logging
 import json
 import os
 import re
@@ -10,15 +9,20 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator, ValidationError
 
+from core.logger import setup_logger, log_error, log_warning, log_info
+from core.security import sanitize_log_message
+from core.config import (
+    AI_API_TIMEOUT,
+    VALID_USER_THESIS,
+    VALID_RISK_LEVELS,
+    DEFAULT_USER_THESIS,
+    DEFAULT_RISK_LEVEL,
+    DEFAULT_SENTIMENT_SCORE
+)
+
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
-# Timeout for AI API calls (in seconds)
-AI_API_TIMEOUT = int(os.getenv("AI_API_TIMEOUT", "60"))  # Default 60 seconds
-
-
-from core.security import sanitize_log_message
+logger = setup_logger(__name__)
 
 
 class AIAnalysisResult(BaseModel):
@@ -30,49 +34,42 @@ class AIAnalysisResult(BaseModel):
     tags: List[str] = Field(default_factory=list, description="Analysis tags")
     
     @validator('user_thesis')
-    def validate_user_thesis(cls, v):
-        """Validate user_thesis is one of the expected values."""
-        valid_values = ['Bullish', 'Bearish', 'Neutral']
-        v_normalized = v.strip().capitalize()
-        if v_normalized not in valid_values:
-            logger.warning(f"Invalid user_thesis value: {v}, defaulting to Neutral")
-            return 'Neutral'
-        return v_normalized
+    def validate_user_thesis(cls, value):
+        normalized_value = value.strip().capitalize()
+        if normalized_value not in VALID_USER_THESIS:
+            log_warning(logger, f"Invalid user_thesis value: {value}, defaulting to {DEFAULT_USER_THESIS}")
+            return DEFAULT_USER_THESIS
+        return normalized_value
     
     @validator('risk_level')
-    def validate_risk_level(cls, v):
-        """Validate risk_level is one of the expected values."""
-        valid_values = ['Low', 'Medium', 'High', 'Extreme']
-        v_normalized = v.strip().capitalize()
-        if v_normalized not in valid_values:
-            logger.warning(f"Invalid risk_level value: {v}, defaulting to Medium")
-            return 'Medium'
-        return v_normalized
+    def validate_risk_level(cls, value):
+        normalized_value = value.strip().capitalize()
+        if normalized_value not in VALID_RISK_LEVELS:
+            log_warning(logger, f"Invalid risk_level value: {value}, defaulting to {DEFAULT_RISK_LEVEL}")
+            return DEFAULT_RISK_LEVEL
+        return normalized_value
     
     @validator('sentiment_score')
-    def validate_sentiment_score(cls, v):
-        """Ensure sentiment_score is within valid range."""
-        if isinstance(v, float):
-            v = int(round(v))
-        if not isinstance(v, int):
+    def validate_sentiment_score(cls, value):
+        if isinstance(value, float):
+            value = int(round(value))
+        if not isinstance(value, int):
             try:
-                v = int(float(v))
+                value = int(float(value))
             except (ValueError, TypeError):
-                logger.warning(f"Invalid sentiment_score type: {type(v)}, defaulting to 50")
-                return 50
-        return max(0, min(100, v))  # Clamp to 0-100
+                log_warning(logger, f"Invalid sentiment_score type: {type(value)}, defaulting to {DEFAULT_SENTIMENT_SCORE}")
+                return DEFAULT_SENTIMENT_SCORE
+        return max(0, min(100, value))
     
     @validator('tags')
-    def validate_tags(cls, v):
-        """Ensure tags is a list."""
-        if not isinstance(v, list):
-            if isinstance(v, str):
-                # Try to parse comma-separated string
-                v = [tag.strip() for tag in v.split(',')]
+    def validate_tags(cls, value):
+        if not isinstance(value, list):
+            if isinstance(value, str):
+                value = [tag.strip() for tag in value.split(',')]
             else:
-                logger.warning(f"Invalid tags type: {type(v)}, defaulting to empty list")
+                log_warning(logger, f"Invalid tags type: {type(value)}, defaulting to empty list")
                 return []
-        return [str(tag) for tag in v if tag]  # Convert all to strings and filter empty
+        return [str(tag) for tag in value if tag]
     
     class Config:
         extra = 'ignore'  # Ignore extra fields from LLM

@@ -171,19 +171,19 @@ export function PostCard({
   }
 
   return (
-    <Card className="bg-card border-border shadow-sm overflow-hidden p-3 sm:p-4 mb-4 last:mb-0">
+    <Card className="bg-card border-border shadow-sm overflow-hidden p-2 sm:p-3 mb-3 last:mb-0">
       
       {/* ZONE 1: HEADER - Single Row Layout for Mobile */}
-      <div className="pb-3">
+      <div className="pb-2">
         {/* Main Row: User Info (Left) --- Ticker Info (Right) */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-2">
           
           {/* Left: Avatar + Name + Sentiment */}
           <Link 
             href={`/profile/${slugifyUsername(post.profiles?.username || '')}`}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity max-w-[65%]"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity max-w-[65%]"
           >
-            <Avatar className="w-10 h-10 border-2 border-border flex-shrink-0">
+            <Avatar className="w-8 h-8 border-2 border-border flex-shrink-0">
               <AvatarImage src={post.profiles?.avatar_url ?? undefined} alt={post.profiles?.username} />
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                 {getInitials(post.profiles?.username || 'U')}
@@ -259,9 +259,9 @@ export function PostCard({
 
       {/* ZONE 2: MARKET CONTEXT - Financial Data */}
       {hasFinancialData && (
-        <div className="pb-4">
-          <div className="bg-muted/30 border border-border rounded-lg p-3">
-            <div className="flex flex-col sm:flex-row items-start gap-4">
+        <div className="pb-3">
+          <div className="bg-muted/30 border border-border rounded-lg p-2">
+            <div className="flex flex-col sm:flex-row items-start gap-3">
               
               {/* Sparkline Chart - Only show if price history exists */}
               {hasPriceHistory && (
@@ -416,7 +416,7 @@ export function PostCard({
 
       {/* ZONE 3: MARKET REALITY CHECK */}
       {post.ai_summary && (
-        <div className="bg-muted/40 border-t border-border flex flex-col gap-3 py-3">
+        <div className="bg-muted/40 border-t border-border flex flex-col gap-2 py-2">
           <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             
             <div className="flex items-center gap-2 mb-1 sm:mb-0">

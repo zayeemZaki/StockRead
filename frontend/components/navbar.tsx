@@ -176,10 +176,10 @@ export function Navbar() {
           <div className="flex items-center justify-between h-14">
               {/* Logo */}
               <Link href="/" className="flex items-center">
-                <h1 className="text-lg font-bold tracking-tight text-primary truncate md:text-2xl">
+                <h1 className="text-base font-bold tracking-tight text-primary truncate md:text-xl">
                   <span className="md:hidden">Stock Read</span>
                   <span className="hidden md:inline">Stock Read</span>
-                  <span className="hidden md:inline text-muted-foreground text-sm font-normal ml-2">| AI Insider</span>
+                  <span className="hidden md:inline text-muted-foreground text-xs font-normal ml-2">| AI Insider</span>
                 </h1>
               </Link>
 
@@ -188,6 +188,7 @@ export function Navbar() {
                 <button
                   onClick={handleSearchClick}
                   className="w-64 bg-muted border border-border text-muted-foreground text-sm px-4 py-2 rounded-full flex items-center gap-2 hover:bg-muted/80 transition-colors"
+                  data-tutorial="search"
                 >
                   <Search className="w-4 h-4" />
                   <span className="flex-1 text-left">Search...</span>
@@ -207,6 +208,7 @@ export function Navbar() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        data-tutorial="create-post"
                       >
                         <Pencil className="w-5 h-5" />
                         <span className="sr-only">New Signal</span>
@@ -218,6 +220,7 @@ export function Navbar() {
                     variant="ghost"
                     size="icon"
                     onClick={handleSearchClick}
+                    data-tutorial="search"
                   >
                     <Search className="w-5 h-5" />
                     <span className="sr-only">Search</span>
@@ -331,6 +334,7 @@ export function Navbar() {
           <Link 
             href="/markets"
             className={`flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/markets') ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            data-tutorial="market-sidebar"
           >
             <LineChart className="w-5 h-5" />
             <span className="text-[10px] font-medium">Market</span>
