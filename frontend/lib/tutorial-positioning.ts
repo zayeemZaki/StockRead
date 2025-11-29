@@ -35,7 +35,6 @@ export function calculateHighlightPosition(element: HTMLElement): HighlightPosit
   const scrollY = window.scrollY || window.pageYOffset;
 
   const computedStyle = window.getComputedStyle(element);
-  const isSticky = computedStyle.position === 'sticky';
   const isMarketSidebar = element.getAttribute('data-tutorial') === 'market-sidebar';
 
   let elementWidth = rect.width;

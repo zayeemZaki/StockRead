@@ -4,9 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { TUTORIAL_STEPS, getTutorialDescription } from '@/lib/tutorial-config';
-import { calculateHighlightPosition, calculateTooltipPosition, calculateSpotlightGradient, type HighlightPosition } from '@/lib/tutorial-positioning';
-import { TUTORIAL, LAYOUT } from '@/lib/constants';
+import { TUTORIAL_STEPS } from '@/lib/tutorial-config';
+import { calculateHighlightPosition, type HighlightPosition } from '@/lib/tutorial-positioning';
+import { TUTORIAL } from '@/lib/constants';
 
 
 export function OnboardingTutorial() {
@@ -46,27 +46,6 @@ export function OnboardingTutorial() {
     setHighlightPosition(position);
   }, []);
 
-  const handleNext = useCallback(() => {
-    if (currentStep < TUTORIAL_STEPS.length - 1) {
-      setIsTransitioning(true);
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
-      }
-      
-      setTimeout(() => {
-        setCurrentStep(prev => prev + 1);
-        setIsTransitioning(false);
-      }, TUTORIAL.TRANSITION_DURATION_MS);
-    } else {
-      handleComplete();
-    }
-  }, [currentStep]);
-
-  const handleSkip = useCallback(() => {
-    handleComplete();
-  }, []);
-
   const handleComplete = useCallback(() => {
     localStorage.setItem(TUTORIAL.STORAGE_KEY, 'true');
     setIsOpen(false);
@@ -84,6 +63,27 @@ export function OnboardingTutorial() {
     setTargetElement(null);
     setHighlightPosition(null);
   }, []);
+
+  const handleNext = useCallback(() => {
+    if (currentStep < TUTORIAL_STEPS.length - 1) {
+      setIsTransitioning(true);
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+      
+      setTimeout(() => {
+        setCurrentStep(prev => prev + 1);
+        setIsTransitioning(false);
+      }, TUTORIAL.TRANSITION_DURATION_MS);
+    } else {
+      handleComplete();
+    }
+  }, [currentStep, handleComplete]);
+
+  const handleSkip = useCallback(() => {
+    handleComplete();
+  }, [handleComplete]);
 
   // Get dynamic description based on screen size for market sidebar step
   // Must be defined before early return to maintain hooks order
@@ -444,10 +444,8 @@ export function OnboardingTutorial() {
     // Mobile: always center bottom, above mobile nav bar with proper spacing
     // For market sidebar on mobile, position it above the bottom tab bar
     if (isMobile) {
-      const isMarketSidebar = currentStep === TUTORIAL_STEPS.length - 1; // Last step is market sidebar
+      const isMarketSidebar = currentStep === TUTORIAL_STEPS.length - 1;
       if (isMarketSidebar && highlightPosition) {
-        // Position tooltip above the bottom tab bar for market step
-        const tooltipHeight = 280;
         return {
           position: 'fixed' as const,
           top: 'auto',
@@ -482,7 +480,6 @@ export function OnboardingTutorial() {
     const elementBottom = highlightPosition.top + highlightPosition.height;
     const elementLeft = highlightPosition.left;
     const elementRight = highlightPosition.left + highlightPosition.width;
-    const elementWidth = highlightPosition.width;
     const elementHeight = highlightPosition.height;
 
     // Calculate available space in each direction
@@ -629,9 +626,8 @@ export function OnboardingTutorial() {
     // Find the first position that doesn't overlap and fits in viewport
     for (const pos of positionsToTry) {
       let finalTop = Math.max(safeTop, Math.min(pos.top, viewportHeight - tooltipHeight - safeBottom));
-      // For left position (market watch), allow it to go further left but ensure it's still visible
-      let finalLeft = step.position === 'left' 
-        ? Math.max(safeLeft - 40, Math.min(pos.left, viewportWidth - tooltipWidth - safeRight)) // Allow more left space
+      const finalLeft = step.position === 'left' 
+        ? Math.max(safeLeft - 40, Math.min(pos.left, viewportWidth - tooltipWidth - safeRight))
         : Math.max(safeLeft, Math.min(pos.left, viewportWidth - tooltipWidth - safeRight));
       
       // Adjust if using transform

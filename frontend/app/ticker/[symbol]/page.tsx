@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase-server';
 import { Navbar } from '@/components/navbar';
 import { InteractiveChart, ExpandableAbout } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
