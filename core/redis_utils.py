@@ -61,3 +61,42 @@ def get_redis_url() -> str | None:
     raw_url = os.getenv("REDIS_URL")
     return normalize_redis_url(raw_url)
 
+
+def get_redis_connection_kwargs(redis_url: str | None) -> dict:
+    """
+    Get Redis connection kwargs from URL.
+    
+    Args:
+        redis_url: Redis URL string
+        
+    Returns:
+        Dictionary of connection kwargs for redis.from_url()
+    """
+    if not redis_url:
+        return {}
+    
+    # Parse URL to extract connection parameters
+    kwargs = {}
+    
+    # Handle TLS/SSL
+    if redis_url.startswith('rediss://'):
+        kwargs['ssl_cert_reqs'] = 'required'
+    
+    # Extract password from URL if present
+    # Format: redis://:password@host:port
+    if '@' in redis_url and '://' in redis_url:
+        try:
+            # Basic parsing - extract password if present
+            parts = redis_url.split('://', 1)
+            if len(parts) == 2 and '@' in parts[1]:
+                auth_part = parts[1].split('@')[0]
+                if ':' in auth_part:
+                    password = auth_part.split(':', 1)[1]
+                    if password:
+                        kwargs['password'] = password
+        except Exception:
+            # If parsing fails, let redis.from_url handle it
+            pass
+    
+    return kwargs
+

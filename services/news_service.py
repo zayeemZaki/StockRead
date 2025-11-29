@@ -3,6 +3,7 @@
 from GoogleNews import GoogleNews
 from services.db_service import DatabaseService
 import logging
+import warnings
 import yfinance as yf
 import requests
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
@@ -11,6 +12,11 @@ import time
 import re
 
 logger = logging.getLogger(__name__)
+
+# Suppress yfinance TzCache warnings
+yfinance_logger = logging.getLogger('yfinance')
+yfinance_logger.setLevel(logging.WARNING)
+warnings.filterwarnings('ignore', message='.*TzCache.*')
 
 
 class NewsService:

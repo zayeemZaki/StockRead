@@ -4,6 +4,7 @@
 import yfinance as yf
 import time
 import logging
+import warnings
 from datetime import datetime, timezone
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -11,6 +12,11 @@ import os
 import pandas as pd
 
 load_dotenv()
+
+# Suppress yfinance TzCache warnings
+yfinance_logger = logging.getLogger('yfinance')
+yfinance_logger.setLevel(logging.WARNING)
+warnings.filterwarnings('ignore', message='.*TzCache.*')
 
 logger = logging.getLogger(__name__)
 

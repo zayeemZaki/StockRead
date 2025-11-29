@@ -16,6 +16,13 @@ from GoogleNews import GoogleNews
 
 from core.market_schema import MarketDataSchema
 
+# Suppress yfinance TzCache warnings - harmless cache folder warning
+import warnings
+import logging
+yfinance_logger = logging.getLogger('yfinance')
+yfinance_logger.setLevel(logging.WARNING)  # Only show warnings and errors, not INFO
+warnings.filterwarnings('ignore', message='.*TzCache.*')
+
 try:
     import pandas_ta as ta
     HAS_PANDAS_TA = True

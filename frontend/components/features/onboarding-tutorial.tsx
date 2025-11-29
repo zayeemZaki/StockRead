@@ -22,13 +22,37 @@ export function OnboardingTutorial() {
 
   useEffect(() => {
     setMounted(true);
-    const hasCompleted = localStorage.getItem(TUTORIAL.STORAGE_KEY) === 'true';
-    if (!hasCompleted) {
-      const timer = setTimeout(() => {
-        setIsOpen(true);
-        setTimeout(() => setIsInitialMount(false), TUTORIAL.TRANSITION_DURATION_MS);
-      }, TUTORIAL.INITIAL_DELAY_MS);
-      return () => clearTimeout(timer);
+    
+    // Check localStorage only on client side
+    if (typeof window !== 'undefined') {
+      try {
+        // Allow forcing tutorial to show via URL parameter (useful for testing/debugging)
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceShow = urlParams.get('showTutorial') === 'true';
+        
+        const hasCompleted = localStorage.getItem(TUTORIAL.STORAGE_KEY) === 'true';
+        
+        if (forceShow || !hasCompleted) {
+          // If forcing, clear the completion flag
+          if (forceShow) {
+            localStorage.removeItem(TUTORIAL.STORAGE_KEY);
+          }
+          
+          const timer = setTimeout(() => {
+            setIsOpen(true);
+            setTimeout(() => setIsInitialMount(false), TUTORIAL.TRANSITION_DURATION_MS);
+          }, TUTORIAL.INITIAL_DELAY_MS);
+          return () => clearTimeout(timer);
+        }
+      } catch (error) {
+        // localStorage might be disabled or unavailable
+        // Show tutorial anyway if we can't check
+        const timer = setTimeout(() => {
+          setIsOpen(true);
+          setTimeout(() => setIsInitialMount(false), TUTORIAL.TRANSITION_DURATION_MS);
+        }, TUTORIAL.INITIAL_DELAY_MS);
+        return () => clearTimeout(timer);
+      }
     }
   }, []);
 
@@ -47,7 +71,9 @@ export function OnboardingTutorial() {
   }, []);
 
   const handleComplete = useCallback(() => {
-    localStorage.setItem(TUTORIAL.STORAGE_KEY, 'true');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TUTORIAL.STORAGE_KEY, 'true');
+    }
     setIsOpen(false);
     
     if (cleanupRef.current) {
@@ -374,7 +400,13 @@ export function OnboardingTutorial() {
     };
   }, [targetElement, isTransitioning, updateHighlightPosition]);
 
-  if (!mounted || !isOpen) {
+  // Only render after client-side mount to avoid hydration issues
+  if (!mounted) {
+    return null;
+  }
+
+  // Don't render if tutorial is not open (either completed or not started yet)
+  if (!isOpen) {
     return null;
   }
 

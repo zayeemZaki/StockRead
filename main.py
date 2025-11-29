@@ -64,6 +64,12 @@ async def root():
     }
 
 
+@app.head("/")
+async def root_head():
+    """Handle HEAD requests to root endpoint."""
+    return ""
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(
