@@ -579,7 +579,8 @@ For licensing inquiries, contact: [zayeemzaki45@gmail.com]
 
 ---
 
-**Built with precision. Powered by AI. Trusted by retail investors.**
+**Built with precision. Powered by AI.**
 
 Stock Read - Because every investor deserves institutional-grade analysis.
+**visit:** [https://zayeemzaki.com](https://zayeemzaki.com)
 
