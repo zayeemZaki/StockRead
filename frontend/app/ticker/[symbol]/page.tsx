@@ -60,7 +60,7 @@ export default async function TickerPage({ params }: TickerPageProps) {
       comments ( id ),
       reactions ( user_id )
     `)
-    .ilike('ticker', upperSymbol)
+    .eq('ticker', upperSymbol)
     .order('created_at', { ascending: false });
 
   // Fetch live AI insights for this ticker
@@ -303,6 +303,7 @@ export default async function TickerPage({ params }: TickerPageProps) {
                         initialPosts={posts} 
                         viewerId={viewer?.id || null}
                         liveInsightsMap={insightsMap}
+                        ticker={upperSymbol}
                       />
                     ) : (
                       <div className="py-12 md:py-16 text-center px-4">

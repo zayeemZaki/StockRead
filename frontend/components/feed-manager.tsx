@@ -17,9 +17,10 @@ interface FeedManagerProps {
   followingIds?: string[];
   isLoading?: boolean;
   liveInsightsMap?: Record<string, { ai_score: number; ai_signal: string; ai_risk: string }>;
+  ticker?: string; // Optional ticker to filter posts
 }
 
-export function FeedManager({ initialPosts, viewerId, isLoading = false, liveInsightsMap }: FeedManagerProps) {
+export function FeedManager({ initialPosts, viewerId, isLoading = false, liveInsightsMap, ticker }: FeedManagerProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [page, setPage] = useState(1); // Start at page 1 (page 0 is initialPosts)
@@ -50,7 +51,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
     
     setIsLoadingMore(true);
     try {
-      const result = await fetchMorePosts(page, 10);
+      const result = await fetchMorePosts(page, 10, 'all', ticker);
       
       if (result.error) {
         console.error('Error loading more posts:', result.error);
@@ -59,7 +60,12 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
       }
       
       if (result.posts.length > 0) {
-        setPosts(prevPosts => [...prevPosts, ...result.posts]);
+        // Deduplicate posts before adding them
+        setPosts(prevPosts => {
+          const existingIds = new Set(prevPosts.map(p => p.id));
+          const newPosts = result.posts.filter(p => !existingIds.has(p.id));
+          return [...prevPosts, ...newPosts];
+        });
         setPage(prevPage => prevPage + 1);
         setHasMore(result.hasMore);
       } else {
@@ -71,7 +77,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
     } finally {
       setIsLoadingMore(false);
     }
-  }, [page, hasMore, isLoadingMore]);
+  }, [page, hasMore, isLoadingMore, ticker]);
 
   // Trigger loadMorePosts when the bottom element comes into view
   useEffect(() => {
@@ -107,14 +113,19 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
             .single();
           
           if (newPost) {
-            // Add to beginning of posts list
-            setPosts(prevPosts => [{
-              ...newPost,
-              profiles: {
-                username: newPost.author_username || 'Unknown',
-                avatar_url: newPost.author_avatar || null
-              }
-            }, ...prevPosts]);
+            // Add to beginning of posts list (only if not already present)
+            setPosts(prevPosts => {
+              const exists = prevPosts.some(p => p.id === newPost.id);
+              if (exists) return prevPosts;
+              
+              return [{
+                ...newPost,
+                profiles: {
+                  username: newPost.author_username || 'Unknown',
+                  avatar_url: newPost.author_avatar || null
+                }
+              }, ...prevPosts];
+            });
           }
         } catch (error) {
           console.error('Error fetching new post:', error);
@@ -380,7 +391,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
           <FeedSkeleton count={5} />
         ) : filteredPosts.length > 0 ? (
           <>
-            {filteredPosts.map((post) => {
+            {filteredPosts.map((post, index) => {
               const initialLikes = post.reactions?.length || 0;
               const initialUserHasLiked = Boolean(
                 viewerId && post.reactions?.some(r => r.user_id === viewerId)
@@ -392,7 +403,7 @@ export function FeedManager({ initialPosts, viewerId, isLoading = false, liveIns
 
               return (
                 <PostCard
-                  key={post.id}
+                  key={`${post.id}-${index}`}
                   post={post}
                   initialLikes={initialLikes}
                   initialUserHasLiked={initialUserHasLiked}

@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { Post } from '@/types';
 
-export async function fetchMorePosts(page: number = 0, limit: number = 10, filter: string = 'all'): Promise<{
+export async function fetchMorePosts(page: number = 0, limit: number = 10, filter: string = 'all', ticker?: string): Promise<{
   posts: Post[];
   hasMore: boolean;
   error?: string;
@@ -30,9 +30,18 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
         .order('trending_score', { ascending: false })
         .range(start, end);
       
+      // Apply ticker filter if provided
+      if (ticker) {
+        query = query.eq('ticker', ticker);
+      }
+      
       countQuery = supabase
         .from('trending_posts_24h')
         .select('*', { count: 'exact', head: true });
+      
+      if (ticker) {
+        countQuery = countQuery.eq('ticker', ticker);
+      }
     } else {
       // Default query for 'all', 'bullish', etc.
       query = supabase
@@ -47,9 +56,18 @@ export async function fetchMorePosts(page: number = 0, limit: number = 10, filte
         .order('created_at', { ascending: false })
         .range(start, end);
       
+      // Apply ticker filter if provided
+      if (ticker) {
+        query = query.eq('ticker', ticker);
+      }
+      
       countQuery = supabase
         .from('posts')
         .select('*', { count: 'exact', head: true });
+      
+      if (ticker) {
+        countQuery = countQuery.eq('ticker', ticker);
+      }
     }
     
     const { data: rawPosts, error } = await query;
