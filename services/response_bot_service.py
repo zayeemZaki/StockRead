@@ -503,16 +503,26 @@ class ResponseBotService:
                 consecutive_errors += 1
                 error_type = type(e).__name__
                 error_msg = str(e)
-                
+
                 # Determine backoff based on error type
                 if '429' in error_msg or 'quota' in error_msg.lower():
                     # Rate limit: exponential backoff up to 5 minutes
                     delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 4)), max_delay)
                     logger.error(f"Rate limit error in database polling (attempt {consecutive_errors}): {error_type}")
-                elif 'timeout' in error_msg.lower() or 'connection' in error_msg.lower():
-                    # Network issues: moderate exponential backoff
+                elif 'Name or service not known' in error_msg or 'ConnectError' in error_type or 'connection' in error_msg.lower():
+                    # DNS/connection failure: re-create the Supabase client to get a fresh connection
                     delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 180)
-                    logger.error(f"Connection error in database polling (attempt {consecutive_errors}): {error_type}")
+                    logger.error(f"Connection error in database polling (attempt {consecutive_errors}): {error_type}: {error_msg[:100]}")
+                    try:
+                        logger.info("Re-initializing database connection after connection failure...")
+                        self.db = DatabaseService()
+                        logger.info("Database connection re-initialized successfully")
+                    except Exception as reinit_err:
+                        logger.error(f"Failed to re-initialize database connection: {reinit_err}")
+                elif 'timeout' in error_msg.lower():
+                    # Timeout: moderate backoff
+                    delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 180)
+                    logger.error(f"Timeout error in database polling (attempt {consecutive_errors}): {error_type}")
                 elif 'database' in error_msg.lower() or 'supabase' in error_msg.lower():
                     # Database errors: longer backoff
                     delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 120)
@@ -521,10 +531,10 @@ class ResponseBotService:
                     # Other errors: standard exponential backoff
                     delay = min(base_delay * (backoff_multiplier ** min(consecutive_errors, 3)), 60)
                     logger.error(f"Error in database polling (attempt {consecutive_errors}): {error_type}: {error_msg[:100]}")
-                
+
                 logger.warning(f"Using exponential backoff: waiting {delay}s before retry...")
                 time.sleep(delay)
-                
+
                 # Reset after successful recovery (handled in try block)
 
     def process_user_posts(self):
