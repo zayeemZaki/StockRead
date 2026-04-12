@@ -11,6 +11,8 @@ from datetime import datetime
 import time
 import re
 
+from core.yf_session import get_yf_session
+
 logger = logging.getLogger(__name__)
 
 # Suppress yfinance TzCache warnings
@@ -24,10 +26,13 @@ class NewsService:
     
     def __init__(self):
         self.db = DatabaseService()
+        # HTTP session used for Google News redirect resolution
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+        # Shared rate-limited + cached session for all yfinance calls
+        self.yf_session = get_yf_session()
         logger.info("News Service initialized")
     
     def _clean_url(self, url: str) -> str:
@@ -243,51 +248,52 @@ class NewsService:
             
             for ticker in tickers:
                 try:
-                    stock = yf.Ticker(ticker)
+                    # Pass the shared rate-limited session so all requests to
+                    # Yahoo Finance are automatically paced and cached.
+                    stock = yf.Ticker(ticker, session=self.yf_session)
                     news = stock.news
-                    
+
                     if news:
                         for article in news[:limit_per_topic]:
                             title = article.get('title', '').strip()
                             if not title or title in seen_titles:
                                 continue
-                            
+
                             seen_titles.add(title)
-                            
+
                             # Yahoo Finance news has direct links
                             link = article.get('link', '')
                             if not link or 'yahoo.com' not in link:
                                 # Sometimes link is in uuid format, construct proper URL
                                 if 'uuid' in article:
                                     link = f"https://finance.yahoo.com/news/{article.get('uuid', '')}"
-                            
+
                             # Clean URL to remove any tracking parameters
                             cleaned_link = self._clean_url(link or '')
                             source = article.get('publisher', 'Yahoo Finance')
-                            
+
                             # Validate news item before adding
                             if not self._is_valid_news_item(title, source, cleaned_link):
                                 logger.debug(f"Filtered out invalid news item: {title[:50]}...")
                                 continue
-                            
+
                             # Parse date
                             pub_date = article.get('providerPublishTime', 0)
                             if pub_date:
                                 try:
                                     date_str = datetime.fromtimestamp(pub_date).strftime('%Y-%m-%d %H:%M:%S')
-                                except:
+                                except Exception:
                                     date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             else:
                                 date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                            
+
                             news_items.append({
                                 'title': title,
                                 'source': source,
                                 'link': cleaned_link,
                                 'date': date_str
                             })
-                    
-                    time.sleep(0.5)  # Rate limiting
+
                 except Exception as e:
                     logger.warning(f"Failed to fetch Yahoo Finance news for {ticker}: {str(e)}")
                     continue

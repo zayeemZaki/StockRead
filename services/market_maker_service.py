@@ -10,6 +10,9 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 import pandas as pd
+import requests
+
+from core.yf_session import get_yf_session
 
 load_dotenv()
 
@@ -25,6 +28,13 @@ BLACKLIST = ['ANSS', 'DISCA', 'DISCK', 'HES', 'CTLT', 'DFS']
 CHUNK_SIZE = 50
 
 
+def _is_rate_limited(exc: Exception) -> bool:
+    """Return True if *exc* represents an HTTP 429 Too Many Requests error."""
+    if isinstance(exc, requests.exceptions.HTTPError):
+        return getattr(exc.response, "status_code", None) == 429
+    return "429" in str(exc) or "Too Many Requests" in str(exc).lower()
+
+
 class MarketMakerService:
     """Service for fetching and updating S&P 500 stock prices."""
     
@@ -37,6 +47,7 @@ class MarketMakerService:
             raise ValueError("Missing Supabase credentials. Required environment variables: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
         
         self.supabase: Client = create_client(supabase_url, supabase_key)
+        self.yf_session = get_yf_session()
         self.tickers = self.get_sp500_tickers()
         logger.info(f"Market Maker Service initialized with {len(self.tickers)} tickers")
     
@@ -139,18 +150,22 @@ class MarketMakerService:
             chunk_tickers = self.tickers[start_idx:end_idx]
             
             try:
+                # threads=False: serial downloads through the shared rate-limited
+                # session; avoids spawning thread-pool workers that leak memory on
+                # Render when Yahoo is slow or returns errors.
                 df = yf.download(
                     chunk_tickers,
                     period="1d",
                     interval="1d",
                     group_by='ticker',
                     progress=False,
-                    threads=True,
-                    auto_adjust=True
+                    threads=False,
+                    auto_adjust=True,
+                    session=self.yf_session,
                 )
-                
+
                 chunk_success = 0
-                
+
                 if len(chunk_tickers) == 1:
                     ticker = chunk_tickers[0]
                     if not df.empty and 'Close' in df.columns:
@@ -161,17 +176,24 @@ class MarketMakerService:
                         try:
                             if ticker not in df.columns.get_level_values(0):
                                 continue
-                            
+
                             ticker_df = df[ticker]
                             self._process_single_ticker(ticker, ticker_df, stock_data_list)
                             chunk_success += 1
                         except Exception as e:
                             logger.warning(f"{ticker} error: {e}")
                             continue
-                
+
             except Exception as chunk_error:
-                logger.error(f"Chunk {chunk_idx + 1} failed: {chunk_error}")
-            
+                if _is_rate_limited(chunk_error):
+                    logger.warning(
+                        f"Rate limited (HTTP 429) on chunk {chunk_idx + 1}; "
+                        "backing off 60 s before continuing"
+                    )
+                    time.sleep(60)
+                else:
+                    logger.error(f"Chunk {chunk_idx + 1} failed: {chunk_error}")
+
             if chunk_idx < num_chunks - 1:
                 time.sleep(1)
         

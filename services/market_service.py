@@ -15,6 +15,7 @@ import re
 from GoogleNews import GoogleNews
 
 from core.market_schema import MarketDataSchema
+from core.yf_session import get_yf_session
 
 # Suppress yfinance TzCache warnings - harmless cache folder warning
 import warnings
@@ -39,7 +40,10 @@ class MarketDataService:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
+
+        # Shared rate-limited + cached session for all yfinance calls
+        self.yf_session = get_yf_session()
+
         # Initialize Redis with graceful degradation
         try:
             from core.redis_utils import get_redis_url
@@ -66,7 +70,7 @@ class MarketDataService:
             Dictionary with VIX value and market sentiment
         """
         try:
-            vix = yf.Ticker("^VIX")
+            vix = yf.Ticker("^VIX", session=self.yf_session)
             vix_price = vix.fast_info.last_price
             
             # Determine market sentiment based on VIX levels
@@ -113,8 +117,8 @@ class MarketDataService:
         
         # Step B: API Fetch
         try:
-            stock = yf.Ticker(ticker)
-            
+            stock = yf.Ticker(ticker, session=self.yf_session)
+
             price = stock.fast_info.last_price
             prev_close = stock.fast_info.previous_close
             volume = stock.fast_info.last_volume
@@ -300,7 +304,7 @@ class MarketDataService:
         
         # Step B: API Fetch
         try:
-            stock = yf.Ticker(ticker)
+            stock = yf.Ticker(ticker, session=self.yf_session)
             df = stock.history(period="1y")
             
             if df.empty:
@@ -521,7 +525,7 @@ class MarketDataService:
         
         # Try Yahoo Finance first (better links, more reliable)
         try:
-            stock = yf.Ticker(ticker)
+            stock = yf.Ticker(ticker, session=self.yf_session)
             yahoo_news = stock.news
             
             if yahoo_news:
