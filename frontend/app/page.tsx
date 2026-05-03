@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { Navbar } from '@/components/navbar';
 import { CreatePost, MarketSidebar } from '@/components/features';
 import { FeedManager } from '@/components/feed-manager';
+import { ReloadButton } from '@/components/ui/reload-button';
 import Link from 'next/link';
 
 export default async function Home() {
@@ -44,12 +45,9 @@ export default async function Home() {
             )}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
-            >
+            <ReloadButton className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm">
               Try Again
-            </button>
+            </ReloadButton>
             <Link
               href="/"
               className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm"
