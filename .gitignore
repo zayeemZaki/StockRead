@@ -86,3 +86,11 @@ Thumbs.db
 logs/
 *.log
 
+# Local envs and frontend build artifacts (added)
+# Python virtual envs
+.venv/
+venv/
+# Frontend dependencies and build
+frontend/node_modules/
+frontend/.next/
+
